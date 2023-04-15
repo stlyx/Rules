@@ -1,9 +1,11 @@
 # 直连的 Emby 服务器
 # Misty
 DOMAIN-SUFFIX,aaa.ax
+DOMAIN-SUFFIX,misty.ltd
 # MisakaF
 DOMAIN-SUFFIX,misakaf.xyz
 DOMAIN-SUFFIX,misakaf.org
+DOMAIN-SUFFIX,asa4.cn
 # Polo
 DOMAIN-SUFFIX,poloemby.xyz
 DOMAIN-SUFFIX,xf.gay
