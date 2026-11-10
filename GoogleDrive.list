@@ -1,0 +1,17 @@
+# Google Drive / Docs: service-specific hosts and desktop client processes.
+# Reference: https://support.google.com/a/answer/2589954
+# Shared Google login, API and image hosts keep their existing routing.
+DOMAIN-SUFFIX,drive.google.com
+DOMAIN-SUFFIX,drive.usercontent.google.com
+DOMAIN-SUFFIX,drive-data-export.usercontent.google.com
+DOMAIN-SUFFIX,drive-data-export-eu.usercontent.google.com
+DOMAIN-SUFFIX,googledrive.com
+DOMAIN-SUFFIX,docs.google.com
+DOMAIN-SUFFIX,drive.googleusercontent.com
+DOMAIN-SUFFIX,docs.googleusercontent.com
+DOMAIN-SUFFIX,sheets.google.com
+DOMAIN-SUFFIX,slides.google.com
+DOMAIN,drive.googleapis.com
+DOMAIN-REGEX,^doc-[a-z0-9-]+-(drive|docs|apps-viewer)\.googleusercontent\.com$
+PROCESS-NAME,GoogleDriveFS.exe
+PROCESS-NAME,GoogleDriveFS
