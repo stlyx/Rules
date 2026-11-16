@@ -2,7 +2,7 @@
 # Private credentials are assembled by Sub-Store.
 schema: topo-policy/v1
 status: active
-layout: git-rules-rewrites-v2
+layout: direct-upstream-rewrites-v3
 date: '2026-11-16'
 sources:
   flowercloud:
@@ -342,10 +342,12 @@ qx:
     startup-ads:
       keep: true
       category: ads
-      dedicated-module-overlap: exclude-reviewed-overlaps
       tag: 通用应用 · 去开屏
       legacy_tags:
       - 墨鱼去开屏
+      url: https://ddgksf2013.top/rewrite/StartUpAds.conf
+      opt_parser: false
+      update_interval: 86400
     wechat-miniapp:
       keep: true
       category: ads
@@ -358,12 +360,88 @@ qx:
       tag: 微信 · 解除链接屏蔽
       legacy_tags:
       - 微信解锁被屏蔽的URL@zZPiglet
+      url: https://raw.githubusercontent.com/ddgksf2013/Rewrite/master/Function/UnblockURLinWeChat.conf
+      opt_parser: false
+      update_interval: 86400
+      img_url: https://github.com/Koolson/Qure/raw/master/IconSet/mini/WeChat.png
     youtube-ads:
       keep: true
       category: ads
       tag: YouTube · 去广告
       legacy_tags:
       - 油管去广告@Maasea
+    xiaohongshu:
+      tag: 小红书 · 净化与去水印
+      legacy_tags:
+      - 小红书净化+去水印@ddgksf2013
+      url: https://ddgksf2013.top/rewrite/XiaoHongShuAds.conf
+      img_url: https://github.com/ddgksf2013/Icon/raw/master/qx/xiaohongshu.png
+      opt_parser: false
+      category: ads
+      mixed_functionality: true
+      enabled: true
+      update_interval: 86400
+    baidupan-ads:
+      tag: 百度网盘 · 净化
+      legacy_tags:
+      - 百度网盘净化@ddgksf2013
+      url: https://ddgksf2013.top/scripts/bdpan.ads.js
+      img_url: https://github.com/ddgksf2013/Icon/raw/master/qx/baiduwangpan.png
+      opt_parser: true
+      category: ads
+      enabled: true
+      update_interval: 86400
+    baidupan-speed:
+      tag: 百度网盘 · 倍速
+      legacy_tags:
+      - 百度网盘倍速@ddgksf2013
+      url: https://ddgksf2013.top/scripts/bdpan.unlock.js
+      img_url: https://github.com/ddgksf2013/Icon/raw/master/qx/baiduwangpan.png
+      opt_parser: true
+      category: functional
+      enabled: true
+      update_interval: 86400
+    spotify:
+      tag: Spotify · 去广告与播放增强
+      legacy_tags: []
+      url: https://raw.githubusercontent.com/app2smile/rules/master/module/spotify.conf
+      opt_parser: false
+      category: ads
+      mixed_functionality: true
+      enabled: true
+      update_interval: 86400
+    railway12306:
+      tag: 铁路12306 · 去广告
+      legacy_tags: []
+      url: https://raw.githubusercontent.com/ddgksf2013/Scripts/master/12306.js
+      opt_parser: true
+      category: ads
+      enabled: true
+      update_interval: 86400
+    netease:
+      tag: 网易云音乐 · 净化
+      legacy_tags: []
+      url: https://raw.githubusercontent.com/ddgksf2013/Rewrite/master/AdBlock/NeteaseAds.conf
+      opt_parser: false
+      category: ads
+      enabled: true
+      update_interval: 86400
+    china-unicom:
+      tag: 中国联通 · 净化
+      legacy_tags: []
+      url: https://raw.githubusercontent.com/ddgksf2013/Rewrite/master/AdBlock/ChinaUnicomAds.conf
+      opt_parser: false
+      category: ads
+      enabled: true
+      update_interval: 86400
+    iringo-weatherkit:
+      tag: 苹果天气 · WeatherKit 增强
+      legacy_tags: []
+      url: https://github.com/NSRingo/WeatherKit/releases/latest/download/iRingo.WeatherKit.snippet
+      opt_parser: false
+      category: functional
+      enabled: true
+      update_interval: 86400
   other_legacy_modules: archive-not-enabled-in-new-profile
   boxjs: include-only-if-selected-modules-require-it
   policy_icon_base: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/
@@ -389,6 +467,13 @@ qx:
     apple: Apple.png
     telegram: Telegram.png
     crypto: Cryptocurrency.png
+  rewrite_transport: direct-upstream
+  rewrite_overlap_handling: accept-upstream-overlaps
+  rewrite_requirements:
+    udp_drop_ports:
+    - 443
+    direct_hosts:
+    - ad.12306.cn
 publishing:
   auto_check_interval_hours: 24
   reject_empty_or_invalid_updates: true

@@ -56,6 +56,19 @@ comment-wrapped rewrite and MITM sections. Both ad-control bundles use the same
 labels/options, so switching ad mode preserves them.
 YouTube subtitle translation has been removed from the maintained inventory.
 
+Rewrite resources reference their original upstreams directly, including the full
+startup-ad list. The routing builder no longer downloads, filters or publishes
+startup rewrites, and no custom-host guard is applied. Upstream overlaps are
+accepted. URLs, parser flags and refresh intervals for public modules live in
+`policy.yaml`; private owner resources stay only in Sub-Store.
+
+The 12306 rewrite requires `ad.12306.cn` to bypass DNS ad rejection, so QX has
+one exact-host direct exception before its fallback. This is a QX rewrite
+requirement; Mihomo keeps its domain ad blocking. XiaoHongShu's upstream setup
+requires UDP port 443 in QX's `udp_drop_list`. The mixed cleanup modules for
+XiaoHongShu and Spotify pause as a whole with ads, including their added features;
+Baidu Pan speed, WeChat link unblocking and WeatherKit remain in functional mode.
+
 QX syncs existing remote resources automatically (nodes every 6 hours; routing
 and default rewrite resources every 24 hours). Changes to `[policy]` require
 updating the complete profile. Resource additions/removals can instead be

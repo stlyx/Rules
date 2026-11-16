@@ -75,6 +75,10 @@ const oracleRule = config.rules.indexOf('RULE-SET,topo-oracle,DIRECT');
 assert(oracleRule > 0 && config.rules.every((rule, index) => !rule.startsWith('RULE-SET,topo-ads-') || index < oracleRule));
 
 
+assert(qx.includes('udp_drop_list=443'));
+assert(qx.includes('host,ad.12306.cn,direct'));
+assert.equal(topoQxConfig(qx, manifest, { nodes: 'https://example.org/new-nodes', rules: 'https://example.org/upstream-routing' }).match(/^udp_drop_list=.*$/gm).length, 1);
+
 const operatorCode = fs.readFileSync(require.resolve('./source-operator.js'), 'utf8');
 function project(source, target, values) {
   const context = { TOPO_SOURCE: source, scriptResourceCache: { get() {}, set() {} }, $substore: { error() {} } };

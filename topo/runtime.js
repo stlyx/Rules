@@ -212,11 +212,13 @@ function topoQxRewriteLine(line, policy) {
   const module = Object.values(policy.qx.rewrite_modules).find(item => item.tag === tag || (item.legacy_tags || []).includes(tag));
   if (!module) return line;
   line = line.replace(/(,\s*tag\s*=\s*)[^,]+/, '$1' + module.tag);
-  if (typeof module.opt_parser === 'boolean') {
-    const value = 'opt-parser=' + module.opt_parser;
-    line = /(?:^|,)\s*opt-parser\s*=/.test(line)
-      ? line.replace(/opt-parser\s*=\s*[^,]+/, value)
-      : line + ', ' + value;
+  if (module.url) line = line.replace(/^[^,\s]+(?=\s*,)/, () => module.url);
+  const options = { 'opt-parser': typeof module.opt_parser === 'boolean' ? String(module.opt_parser) : undefined,
+    'update-interval': module.update_interval, 'img-url': module.img_url };
+  for (const [key, value] of Object.entries(options)) {
+    if (value === undefined) continue;
+    const pattern = new RegExp('(^|,)(\\s*' + key + '\\s*=\\s*)[^,]+');
+    line = pattern.test(line) ? line.replace(pattern, (_, comma, prefix) => comma + prefix + value) : line + ', ' + key + '=' + value;
   }
   return line;
 }
@@ -227,7 +229,14 @@ function topoQxConfig(text, manifest, bindings) {
   text = topoReplaceSection(text, 'server_local', '');
   if (!bindings.rules) throw new Error('Missing upstream QX routing feed');
   text = topoReplaceSection(text, 'filter_remote', bindings.rules + ', tag=统一分流 · 上游同步, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true');
-  text = topoReplaceSection(text, 'filter_local', 'final,🚀 主力出口');
+  const requirements = manifest.policy.qx.rewrite_requirements || {};
+  text = topoReplaceSection(text, 'filter_local', [...(requirements.direct_hosts || []).map(host => 'host,' + host + ',direct'), 'final,🚀 主力出口'].join('\n'));
+  if (requirements.udp_drop_ports?.length) {
+    const match = text.match(/^\s*udp_drop_list\s*=([^\n]*)$/m);
+    const ports = [...new Set([...(match ? match[1].split(',').map(value => value.trim()).filter(Boolean) : []), ...requirements.udp_drop_ports.map(String)])];
+    const setting = 'udp_drop_list=' + ports.join(', ');
+    text = match ? text.replace(match[0], setting) : text.replace(/^(\[general\]\s*\n)/m, '$1' + setting + '\n');
+  }
   let section = '';
   text = text.split('\n').map(line => {
     const header = line.trim().match(/^\[([^\]]+)\]$/);

@@ -69,9 +69,7 @@ class Rule:
 
 
 def download(url: str, token: str = "") -> bytes:
-    # The author's domain serves a browser index to non-QX user agents.
-    # Request the actual client resource, then reject HTML instead of publishing it.
-    headers = {"User-Agent": "Quantumult X" if url.startswith("https://ddgksf2013.top/") else "topo-unified-policy/1", "Accept": "application/vnd.github+json"}
+    headers = {"User-Agent": "topo-unified-policy/1", "Accept": "application/vnd.github+json"}
     if token and url.startswith("https://api.github.com/"):
         headers["Authorization"] = "Bearer " + token
     request = urllib.request.Request(url, headers=headers)
@@ -321,10 +319,7 @@ def build(policy_file: Path, output: Path, cache: Path):
         raise ValueError("Routing order must list each supported category once, followed by final")
     categories = [category_by_id[name] for name in order[:-1]]
     checks = check(categories)
-    startup = download("https://ddgksf2013.top/rewrite/StartUpAds.conf").decode("utf-8-sig")
-    if startup.lstrip().lower().startswith(("<!doctype", "<html")):
-        raise ValueError("Startup source returned HTML")
-    fingerprint = hashlib.sha256(policy_file.read_bytes() + Path(__file__).read_bytes() + Path(__file__).with_name("runtime.js").read_bytes() + startup.encode() + json.dumps(revisions, sort_keys=True).encode()).hexdigest()[:16]
+    fingerprint = hashlib.sha256(policy_file.read_bytes() + Path(__file__).read_bytes() + Path(__file__).with_name("runtime.js").read_bytes() + json.dumps(revisions, sort_keys=True).encode()).hexdigest()[:16]
     version = "v1-" + fingerprint
     output.mkdir(parents=True, exist_ok=True)
     descriptors = []
@@ -359,24 +354,7 @@ def build(policy_file: Path, output: Path, cache: Path):
             descriptors.append({"id": name, "category": category["id"], "policy": "🛡️ 广告控制" if category["id"] == "ads" else category["policy"], "behavior": kind, "path": relative, "count": len(rules)})
     (output / "qx-on.list").write_text(qx_text(categories, version))
     (output / "qx-off.list").write_text(qx_text([c for c in categories if c["id"] != "ads"], version))
-    # Dedicated app modules own these endpoints. Keep the generic startup list
-    # for other applications rather than running two response modifiers there.
-    excluded = ("bilibili", "biliapi", "amap", "baidu", "weibo", "umetrip", "youtube", "googlevideo", "weixin", "wechat")
-    curated, removed = [], 0
-    for line in startup.splitlines():
-        stripped = line.strip()
-        if " url " in stripped and not stripped.startswith(("#", ";", "//")):
-            pattern = stripped.split(" url ", 1)[0]
-            normalized = re.sub(r"[^a-z0-9]", "", pattern.lower())
-            if any(marker in normalized for marker in excluded):
-                removed += 1
-                continue
-        curated.append(line)
-    if sum(" url " in line and not line.lstrip().startswith(("#", ";", "//")) for line in curated) < 50:
-        raise ValueError("Generic startup source unexpectedly empty")
-    (output / "rewrites").mkdir(exist_ok=True)
-    (output / "rewrites/startup.conf").write_text("# Curated from ddgksf2013 StartUpAds; dedicated app endpoints excluded.\n" + "\n".join(curated) + "\n")
-    manifest = {"schema": 2, "version": version, "built_at": datetime.now(timezone.utc).isoformat(), "source_revisions": revisions, "source_hashes": {k: hashlib.sha256(v).hexdigest() for k, v in inputs.items()}, "providers": descriptors, "upstream_providers": upstream, "policy": policy, "qx_on": "qx-on.list", "qx_off": "qx-off.list", "checks": checks, "startup_source_sha256": hashlib.sha256(startup.encode()).hexdigest(), "startup_dedicated_rules_removed": removed}
+    manifest = {"schema": 2, "version": version, "built_at": datetime.now(timezone.utc).isoformat(), "source_revisions": revisions, "source_hashes": {k: hashlib.sha256(v).hexdigest() for k, v in inputs.items()}, "providers": descriptors, "upstream_providers": upstream, "policy": policy, "qx_on": "qx-on.list", "qx_off": "qx-off.list", "checks": checks}
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     (output / "validation.json").write_text(json.dumps({"version": version, "domain_cases": checks, "overlapping_ad_pause_case": True, "provider_counts": {p["id"]: p["count"] for p in descriptors}}, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps({"version": version, "providers": len(descriptors), "ad_rules": len(next(c for c in categories if c["id"] == "ads")["rules"]), "checked_domains": len(checks)}, ensure_ascii=False))
