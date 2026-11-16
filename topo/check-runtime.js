@@ -38,7 +38,15 @@ assert.equal(groups['☁️ 微软云盘'].proxies[0], 'DIRECT');
 assert.equal(groups['🍎 苹果服务'].proxies[0], 'DIRECT');
 assert.deepEqual(groups['🛡️ 广告控制'].proxies, ['REJECT', 'PASS']);
 assert(groups['🚀 主力出口'].proxies.includes('🏡 家宽链式'));
-assert.deepEqual(groups['⚡ CF前置'].proxies, ['[家宽前置] front']);
+assert.equal(groups['⚡ CF前置'].type, 'select');
+assert.deepEqual(groups['⚡ CF前置'].proxies, ['☁️ CF 备用', '🌸 花云低倍', '🏠 自建节点', '🌸 花云全量']);
+assert(config['proxy-groups'].findIndex(group => group.name === '⚡ CF前置') < config['proxy-groups'].findIndex(group => group.name === '🇺🇸 美国'));
+const badFront = structuredClone(manifest);
+badFront.policy.chain_front.choices.push('main');
+assert.throws(() => topoMihomo({ proxies: nodes }, badFront), /Unsupported residential front choice/);
+const recursiveNodes = structuredClone(nodes);
+recursiveNodes.find(node => node.name.includes('[自建/bwh]'))['dialer-proxy'] = '⚡ CF前置';
+assert.throws(() => topoMihomo({ proxies: recursiveNodes }, manifest), /Proxy dependency cycle/);
 assert.throws(() => topoMihomo({ proxies: nodes.filter(n => !n.name.includes('[花云] 美国')) }, manifest), /Missing airport region/);
 
 const text = '[general]\nserver_check_url=https://example.org\n[policy]\nstatic=legacy,direct\n[server_remote]\nhttps://example.org/old\n[server_local]\nlegacy-node\n[filter_remote]\nhttps://example.org/old-rules\n[filter_local]\nfinal,direct\n[mitm]\npassphrase=PRIVATE-PLACEHOLDER\n';

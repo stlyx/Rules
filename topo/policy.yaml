@@ -2,7 +2,7 @@
 # Private credentials are assembled by Sub-Store.
 schema: topo-policy/v1
 status: active
-layout: manual-source-first-v1
+layout: manual-source-first-v2
 date: '2026-11-16'
 sources:
   flowercloud:
@@ -70,6 +70,16 @@ selectors:
     - Mihomo
     selection: manual
     front_group: ⚡ CF前置
+chain_front:
+  name: ⚡ CF前置
+  default: cf-backup
+  choices:
+  - airport-low
+  - self-hosted
+  - airport-all
+  - cf-backup
+  platforms:
+  - Mihomo
 regions:
   sole_source: flowercloud
   required:

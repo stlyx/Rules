@@ -22,7 +22,10 @@ defaults to the low-cost airport selector. Mapping order in `policy.yaml`
 places the main, low-cost, self-hosted and other node selectors before the
 service selectors; Telegram and cryptocurrency are last in both clients.
 CF and residential OpenVPN chains are explicit choices; the latter are
-Mihomo-only and must retain their CF dialer group.
+Mihomo-only. Their dialer selector offers the low-cost airport, self-hosted,
+all-airport and CF selectors, with CF selected by default. The main and
+residential selectors are excluded to prevent recursive chains. All group and
+dialer dependencies are checked for cycles before returning a profile.
 
 Private installation and verification records are maintained in `/opt/topo`
 on the owner's workstation, not in this public repository.

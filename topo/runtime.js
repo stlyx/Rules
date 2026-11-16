@@ -57,8 +57,9 @@ function topoRank(nodes) {
 function topoOrderGroups(groups, policy) {
   const order = [
     ...Object.values(policy.selectors).map(item => item.name),
+    policy.chain_front.name,
     ...[...policy.regions.required, ...policy.regions.optional].map(country => TOPO_COUNTRIES[country].name),
-    '♻️ 花云自动', '♻️ CF 自动', '⚡ CF前置', '🛡️ 广告控制',
+    '♻️ 花云自动', '♻️ CF 自动', '🛡️ 广告控制',
     ...Object.values(policy.business_groups).map(item => item.name),
   ];
   const ranks = new Map(order.map((name, index) => [name, index]));
@@ -84,7 +85,6 @@ function topoMihomo(config, manifest) {
   const self = nodes.filter(p => /^(?:自建\/bwh|自建\/ora)$/.test(origin(p) || ''));
   const cf = nodes.filter(p => origin(p) === 'CF');
   const home = nodes.filter(p => origin(p) === '家宽' && p.type === 'openvpn');
-  const fronts = nodes.filter(p => origin(p) === '家宽前置');
   if (!airport.length || !self.length || !cf.length) throw new Error('Missing required node source');
   const names = topoNames(policy);
   const groups = [];
@@ -113,7 +113,11 @@ function topoMihomo(config, manifest) {
   group('♻️ CF 自动', 'url-test', cf.map(p => p.name), { interval: 600, tolerance: 80 });
   group(names['cf-backup'], 'select', ['♻️ CF 自动', ...cf.map(p => p.name)]);
   if (home.length) {
-    group('⚡ CF前置', 'url-test', fronts.map(p => p.name), { interval: 600, tolerance: 80 });
+    const front = policy.chain_front;
+    const frontIds = [front.default, ...front.choices.filter(id => id !== front.default)];
+    const allowed = new Set(['airport-low', 'self-hosted', 'airport-all', 'cf-backup']);
+    if (frontIds.some(id => !allowed.has(id))) throw new Error('Unsupported residential front choice');
+    group(front.name, 'select', frontIds.map(id => names[id]));
     const preferred = [...home].sort((a, b) => Number(!/HK-家宽/.test(a.name)) - Number(!/HK-家宽/.test(b.name)));
     group(names['home-chain'], 'select', preferred.map(p => p.name));
   }
@@ -139,6 +143,18 @@ function topoMihomo(config, manifest) {
   const known = new Set([...nodes.map(p => p.name), ...config['proxy-groups'].map(g => g.name), 'DIRECT', 'REJECT', 'PASS']);
   for (const g of config['proxy-groups']) for (const n of g.proxies) if (!known.has(n)) throw new Error('Unresolved group member: ' + n);
   for (const p of nodes) if (p['dialer-proxy'] && !known.has(p['dialer-proxy'])) throw new Error('Unresolved chain front');
+  const dependencies = new Map(config['proxy-groups'].map(g => [g.name, g.proxies]));
+  for (const p of nodes) if (p['dialer-proxy']) dependencies.set(p.name, [p['dialer-proxy']]);
+  const visiting = new Set(), visited = new Set();
+  function visit(name) {
+    if (visiting.has(name)) throw new Error('Proxy dependency cycle: ' + name);
+    if (visited.has(name)) return;
+    visiting.add(name);
+    for (const member of dependencies.get(name) || []) visit(member);
+    visiting.delete(name);
+    visited.add(name);
+  }
+  for (const name of dependencies.keys()) visit(name);
   for (const key of Object.keys(config)) if (key.startsWith('x-topo-')) delete config[key];
   return config;
 }
