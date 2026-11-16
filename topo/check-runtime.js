@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const { topoMihomo, topoQxConfig } = require('./runtime.js');
+const { topoMihomo, topoQxConfig, topoRegionRegex } = require('./runtime.js');
 const file = process.argv[2];
 if (!file) throw new Error('Pass the generated manifest path');
 const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -16,6 +16,7 @@ const nodes = [...airport,
   { name: '🇺🇸 [自建/bwh] reality+vision 直连', type: 'vless', server: 'example.org' },
   { name: '[自建/ora] oracle', type: 'vless', server: 'example.org' },
   { name: '[CF] 美国假标签', type: 'vless', server: 'example.org' },
+  { name: '[CF] [花云] 美国实验性伪标签', type: 'vless', server: 'example.org' },
   { name: '[家宽前置] front', type: 'vless', server: 'example.org' },
   { name: '[家宽] HK-家宽-01', type: 'openvpn', server: 'example.org', 'dialer-proxy': '⚡ CF前置' },
 ];
@@ -24,6 +25,8 @@ const groups = Object.fromEntries(config['proxy-groups'].map(g => [g.name, g]));
 assert.equal(groups['🚀 主力出口'].proxies[0], '🌸 花云容灾');
 assert.deepEqual(groups['🌸 花云容灾'].proxies, ['[花云] 香港实验性 1', '[花云] 香港标准 1']);
 assert.deepEqual(groups['🛟 美国容灾'].proxies, ['[花云] 美国实验性 1', '[花云] 美国标准 1']);
+assert(new RegExp(topoRegionRegex('US')).test('🇺🇸 [花云] 美国实验性 1'));
+assert(!new RegExp(topoRegionRegex('US')).test('[CF] [花云] 美国实验性伪标签'));
 assert.equal(groups['🤖 AI 服务'].proxies[0], '🇺🇸 美国');
 assert.equal(groups['Ⓜ️ 微软服务'].proxies[0], 'DIRECT');
 assert.equal(groups['☁️ 微软云盘'].proxies[0], 'DIRECT');

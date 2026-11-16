@@ -80,8 +80,29 @@ def main():
     else:
         new_tokens = {name: secrets.token_urlsafe(24) for name in ["qx-controls", "qx-ad-control-task", "qx-diy-noads"]}
         allocations.write_text(json.dumps(new_tokens))
+    if "qx-startup-guarded" not in new_tokens:
+        new_tokens["qx-startup-guarded"] = secrets.token_urlsafe(24)
+        allocations.write_text(json.dumps(new_tokens))
 
     text = original_files["qx-diy"]["content"]
+    protected_hosts = []
+    for line in section(text, "mitm"):
+        if re.match(r"\s*hostname\s*=", line):
+            protected_hosts.extend(h.strip() for h in line.split("=", 1)[1].split(",") if h.strip() and not h.strip().startswith("-"))
+    if "*" in protected_hosts:
+        raise ValueError("Cannot protect a global wildcard without disabling generic startup rules")
+    protected_pattern = "(?:" + "|".join(re.escape(h).replace(r"\*", r"[^/]*").replace(r"\?", r"[^/]") for h in protected_hosts) + ")(?:[:/]|$)"
+    guard_code = '''const protectedPattern = PROTECTED;
+if ($content.trimStart().toLowerCase().startsWith('<!doctype') || $content.trimStart().toLowerCase().startsWith('<html')) throw new Error('Startup source is HTML');
+$content = $content.split(/\\r?\\n/).map(line => {
+  if (line.trimStart().startsWith('#') || line.trimStart().startsWith('//') || line.trimStart().startsWith(';')) return line;
+  const index = line.indexOf(' url ');
+  if (index < 0) return line;
+  const pattern = line.slice(0, index).trim().replace(/^\\^/, '');
+  return '^(?!https?://' + protectedPattern + ')(?:' + pattern + ')' + line.slice(index);
+}).join('\\n');
+'''.replace("PROTECTED", json.dumps(protected_pattern))
+    guarded_startup = {"name": "qx-startup-guarded", "displayName": "QX 通用去开屏 · 保留自定义主机", "source": "remote", "sourceType": "remote", "url": "https://raw.githubusercontent.com/stlyx/Rules/master/topo/generated/current/rewrites/startup.conf", "process": [{"type": "Script Operator", "args": {"mode": "script", "content": guard_code}}]}
     original_rewrites = [line for line in section(text, "rewrite_remote") if active(line)]
     travel = [line for line in original_rewrites if "旅行串串" in tag(line)]
     if len(travel) != 4:
@@ -106,7 +127,7 @@ def main():
             raise ValueError("Expected exactly one preserved module: " + key)
         line = matches[0]
         if key == "startup":
-            line = "https://raw.githubusercontent.com/stlyx/Rules/master/topo/generated/current/rewrites/startup.conf," + line.split(",", 1)[1]
+            line = share("qx-startup-guarded", new_tokens["qx-startup-guarded"]) + "," + line.split(",", 1)[1]
         selected.append(line)
         categories[tag(line)] = category
     # Keep the owner's four source lines in their original relative order/text.
@@ -135,6 +156,7 @@ def main():
         bundles[mode] = {"server_remote": [node_resource], "filter_remote": [filters], "rewrite_remote": rewrites}
     urls = {mode: "quantumult-x:///update-configuration?remote-resource=" + urllib.parse.quote(json.dumps(bundle, ensure_ascii=False, separators=(",", ":")), safe="") for mode, bundle in bundles.items()}
     content = """<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>广告控制</title><style>body{font:18px system-ui;max-width:560px;margin:48px auto;padding:0 24px;color:#17202a;background:#f6f8fa}a.button{display:block;text-align:center;padding:20px;margin:18px 0;border-radius:12px;background:#1769e0;color:white;text-decoration:none}p{line-height:1.7}small{color:#596675}</style><h1>广告控制</h1><p>旅行串串、独立会员和功能模块保持原设置。</p>"""
+    content += '<p>首次使用前，请先从原分享链接重新导入新版 QX 完整配置。</p>'
     content += '<a class="button" href="' + html.escape(urls["off"], quote=True) + '">暂停广告拦截</a>'
     content += '<a class="button" href="' + html.escape(urls["on"], quote=True) + '">恢复广告拦截</a>'
     content += "<p><small>切换时 Quantumult X 或系统可能要求确认。此入口同时切换配置内的域名广告拦截和去广告重写，功能模块不随之关闭。</small></p></html>"
@@ -183,7 +205,7 @@ def main():
         raise ValueError("Missing native node collection operator")
     code = runtime + "\nasync function main(config) { return topoMihomo(config, await topoManifest(config['x-topo-policy-seed'])); }\n"
     mihomo["process"].append({"type": "Script Operator", "args": {"mode": "script", "content": code}})
-    definitions = [mihomo, *qx_files, control, task]
+    definitions = [mihomo, *qx_files, guarded_startup, control, task]
     (folder / "files.next.private.json").write_text(json.dumps(definitions, ensure_ascii=False, indent=2))
     (folder / "qx-resource-bundles.private.json").write_text(json.dumps(bundles, ensure_ascii=False, indent=2))
     (folder / "qx-shortcuts.private.json").write_text(json.dumps({"pause_url": urls["off"], "resume_url": urls["on"]}, ensure_ascii=False))

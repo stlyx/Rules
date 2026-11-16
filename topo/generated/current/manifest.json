@@ -1,11 +1,11 @@
 {
   "schema": 1,
-  "version": "v1-83931e2a1bb69add",
-  "built_at": "2026-11-16T10:19:49.124944+00:00",
+  "version": "v1-5673edff47f13c8f",
+  "built_at": "2026-11-16T11:05:10.023438+00:00",
   "source_revisions": {
     "MetaCubeX/meta-rules-dat": "c50286e52b8f6497af083871747d4b49a4bb77a2",
     "privacy-protection-tools/anti-AD": "35507b83bb549b7af2511d3177ad04bd7ca6b04e",
-    "TG-Twilight/AWAvenue-Ads-Rule": "02737455da627c55b636e26057a422df9a59df01"
+    "TG-Twilight/AWAvenue-Ads-Rule": "3b96f6337ee05400d5be302f7e9bdd5188839b82"
   },
   "source_hashes": {
     "ai": "82e430e25d66eb0944c9f1fd6d252d3bb8d8f36c867463fcf315d5b4620d12df",
@@ -40,20 +40,20 @@
       "count": 12
     },
     {
-      "id": "domestic-ai",
-      "category": "domestic-ai",
-      "policy": "DIRECT",
-      "behavior": "domain",
-      "path": "mihomo/domestic-ai.list",
-      "count": 129
-    },
-    {
       "id": "ads",
       "category": "ads",
       "policy": "🛡️ 广告控制",
       "behavior": "domain",
       "path": "mihomo/ads.list",
       "count": 102678
+    },
+    {
+      "id": "domestic-ai",
+      "category": "domestic-ai",
+      "policy": "DIRECT",
+      "behavior": "domain",
+      "path": "mihomo/domestic-ai.list",
+      "count": 129
     },
     {
       "id": "ai",
@@ -138,7 +138,7 @@
   ],
   "policy": {
     "schema": "topo-policy/v1",
-    "status": "candidate",
+    "status": "active",
     "date": "2026-11-16",
     "sources": {
       "flowercloud": {
@@ -399,11 +399,12 @@
     },
     "routing": {
       "order": [
-        "local-network-and-bootstrap",
-        "explicit-user-exceptions-and-domestic-ai",
-        "ads-if-enabled",
+        "bootstrap",
+        "ads",
+        "domestic-ai",
         "ai",
         "telegram",
+        "telegram-ip",
         "crypto",
         "onedrive",
         "microsoft",

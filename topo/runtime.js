@@ -45,7 +45,7 @@ function topoNames(policy) {
 }
 
 function topoRegionRegex(country) {
-  return `^(?=.*\\[花云\\])(?=.*${TOPO_COUNTRIES[country].pattern}).*$`;
+  return `^(?=[^\\[]*\\[花云\\])(?=.*${TOPO_COUNTRIES[country].pattern}).*$`;
 }
 
 function topoRank(nodes) {
@@ -67,11 +67,12 @@ function topoMihomo(config, manifest) {
     return { ...p, name: leadingFlag.test(mapped) ? mapped : (p.name.match(leadingFlag)?.[0] || '') + mapped };
   });
   config.proxies = nodes;
-  const airport = nodes.filter(p => p.name.includes('[花云]'));
-  const self = nodes.filter(p => /\[自建\/(bwh|ora)\]/.test(p.name));
-  const cf = nodes.filter(p => p.name.includes('[CF]'));
-  const home = nodes.filter(p => p.name.includes('[家宽]') && p.type === 'openvpn');
-  const fronts = nodes.filter(p => p.name.includes('[家宽前置]'));
+  const origin = p => p.name.replace(leadingFlag, '').match(/^\[([^\]]+)\]\s/)?.[1];
+  const airport = nodes.filter(p => origin(p) === '花云');
+  const self = nodes.filter(p => /^(?:自建\/bwh|自建\/ora)$/.test(origin(p) || ''));
+  const cf = nodes.filter(p => origin(p) === 'CF');
+  const home = nodes.filter(p => origin(p) === '家宽' && p.type === 'openvpn');
+  const fronts = nodes.filter(p => origin(p) === '家宽前置');
   if (!airport.length || !self.length || !cf.length) throw new Error('Missing required node source');
   const names = topoNames(policy);
   const groups = [];
@@ -94,8 +95,9 @@ function topoMihomo(config, manifest) {
     group(fallback, 'fallback', sorted);
     group(label, 'select', [fallback, ...sorted]);
   }
-  const hk = airport.filter(p => new RegExp(TOPO_COUNTRIES.HK.pattern, 'i').test(p.name));
-  group(names['airport-failover'], 'fallback', topoRank(hk));
+  const primaryRegion = policy.selectors['airport-failover'].filter.region;
+  const primaryNodes = airport.filter(p => new RegExp(TOPO_COUNTRIES[primaryRegion].pattern, 'i').test(p.name));
+  group(names['airport-failover'], 'fallback', topoRank(primaryNodes));
   group(names['airport-low'], 'select', topoRank(airport.filter(p => /实验/.test(p.name))));
   group('♻️ 花云自动', 'url-test', topoRank(airport), { interval: 600, tolerance: 80 });
   group(names['airport-all'], 'select', ['♻️ 花云自动', ...topoRank(airport)]);
@@ -111,7 +113,7 @@ function topoMihomo(config, manifest) {
   }
   const validIds = new Set(['DIRECT', ...Object.keys(policy.selectors).filter(id => id !== 'home-chain' || home.length), ...regionIds]);
   function candidates(items) { return items.filter(id => validIds.has(id)).map(id => names[id] || id); }
-  group(names.main, 'select', candidates(policy.selectors.main.choices));
+  group(names.main, 'select', candidates([policy.selectors.main.default, ...policy.selectors.main.choices.filter(id => id !== policy.selectors.main.default)]));
   const business = [];
   for (const [id, definition] of Object.entries(policy.business_groups)) {
     const choices = [definition.default, ...definition.choices.filter(v => v !== definition.default)];
@@ -143,16 +145,16 @@ function topoQxPolicies(policy) {
   const valid = new Set(['DIRECT', ...Object.keys(policy.selectors).filter(id => id !== 'home-chain'), ...regions.map(c => 'region-' + c)]);
   const get = id => id === 'DIRECT' ? 'direct' : names[id];
   function select(name, ids) { lines.push('static=' + name + ', ' + [...new Set(ids.filter(id => valid.has(id)).map(get))].join(', ')); }
-  select(names.main, policy.selectors.main.choices);
+  select(names.main, [policy.selectors.main.default, ...policy.selectors.main.choices.filter(id => id !== policy.selectors.main.default)]);
   for (const definition of Object.values(policy.business_groups)) select(definition.name, [definition.default, ...definition.choices.filter(v => v !== definition.default)]);
-  lines.push(`available=${names['airport-failover']}, server-tag-regex=${topoRegionRegex('HK')}`);
-  lines.push(`static=${names['airport-low']}, server-tag-regex=^(?=.*\\[花云\\])(?=.*实验).*$`);
-  lines.push('url-latency-benchmark=♻️ 花云自动, server-tag-regex=\\[花云\\], check-interval=600, tolerance=80, alive-checking=false');
-  lines.push(`static=${names['airport-all']}, ♻️ 花云自动, server-tag-regex=\\[花云\\]`);
-  lines.push(`static=${names['self-hosted']}, server-tag-regex=\\[自建/(?:bwh|ora)\\]`);
-  lines.push('available=🏠 自建容灾, server-tag-regex=\\[自建/(?:bwh|ora)\\]');
-  lines.push('url-latency-benchmark=♻️ CF 自动, server-tag-regex=\\[CF\\], check-interval=600, tolerance=80, alive-checking=false');
-  lines.push(`static=${names['cf-backup']}, ♻️ CF 自动, server-tag-regex=\\[CF\\]`);
+  lines.push(`available=${names['airport-failover']}, server-tag-regex=${topoRegionRegex(policy.selectors['airport-failover'].filter.region)}`);
+  lines.push(`static=${names['airport-low']}, server-tag-regex=^(?=[^\\[]*\\[花云\\])(?=.*实验).*$`);
+  lines.push('url-latency-benchmark=♻️ 花云自动, server-tag-regex=^[^\\[]*\\[花云\\], check-interval=600, tolerance=80, alive-checking=false');
+  lines.push(`static=${names['airport-all']}, ♻️ 花云自动, server-tag-regex=^[^\\[]*\\[花云\\]`);
+  lines.push(`static=${names['self-hosted']}, server-tag-regex=^[^\\[]*\\[自建/(?:bwh|ora)\\]`);
+  lines.push('available=🏠 自建容灾, server-tag-regex=^[^\\[]*\\[自建/(?:bwh|ora)\\]');
+  lines.push('url-latency-benchmark=♻️ CF 自动, server-tag-regex=^[^\\[]*\\[CF\\], check-interval=600, tolerance=80, alive-checking=false');
+  lines.push(`static=${names['cf-backup']}, ♻️ CF 自动, server-tag-regex=^[^\\[]*\\[CF\\]`);
   for (const country of regions) {
     const label = TOPO_COUNTRIES[country].name;
     const fallback = '🛟 ' + label.replace(/^\S+\s*/, '') + '容灾';

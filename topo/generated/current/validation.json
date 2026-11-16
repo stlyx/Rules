@@ -1,5 +1,5 @@
 {
-  "version": "v1-83931e2a1bb69add",
+  "version": "v1-5673edff47f13c8f",
   "domain_cases": {
     "gemini.google.com": "🤖 AI 服务",
     "generativelanguage.googleapis.com": "🤖 AI 服务",
@@ -27,8 +27,8 @@
   "provider_counts": {
     "bootstrap": 8,
     "bootstrap-ip": 12,
-    "domestic-ai": 129,
     "ads": 102678,
+    "domestic-ai": 129,
     "ai": 217,
     "telegram": 21,
     "telegram-ip-ip": 12,

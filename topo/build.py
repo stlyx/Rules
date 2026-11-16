@@ -24,6 +24,7 @@ import yaml
 META = "MetaCubeX/meta-rules-dat"
 ANTI = "privacy-protection-tools/anti-AD"
 AWA = "TG-Twilight/AWAvenue-Ads-Rule"
+CATS = "Cats-Team/AdRules"
 
 
 @dataclass(frozen=True)
@@ -189,7 +190,15 @@ def build(policy_file: Path, output: Path, cache: Path):
     if not token:
         auth = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True)
         token = auth.stdout.strip() if auth.returncode == 0 else ""
-    repos = {META: "meta", ANTI: "master", AWA: "main"}
+    ad_choices = {
+        "anti-AD": ("anti_ad", ANTI, "master", "anti-ad-clash.yaml"),
+        "AWAvenue": ("awavenue", AWA, "main", "Filters/AWAvenue-Ads-Rule-Clash.yaml"),
+        "AdRules": ("ad_rules", CATS, "main", "adrules_domainset.txt"),
+    }
+    selected_ads = policy["ads"]["default_sources"]
+    if not selected_ads or any(name not in ad_choices for name in selected_ads):
+        raise ValueError("Unknown or empty advertising source selection")
+    repos = {META: "meta", **{ad_choices[name][1]: ad_choices[name][2] for name in selected_ads}}
 
     def revision(item):
         repo, branch = item
@@ -203,7 +212,7 @@ def build(policy_file: Path, output: Path, cache: Path):
         if key in {"base", "snapshot_consistency", "unknown_syntax"}:
             continue
         specs.append((key, META, path))
-    specs.extend([("anti_ad", ANTI, "anti-ad-clash.yaml"), ("awavenue", AWA, "Filters/AWAvenue-Ads-Rule-Clash.yaml")])
+    specs.extend((key, repo, path) for key, repo, _, path in (ad_choices[name] for name in selected_ads))
 
     def get(spec):
         key, repo, path = spec
@@ -214,7 +223,7 @@ def build(policy_file: Path, output: Path, cache: Path):
 
     with ThreadPoolExecutor(max_workers=6) as pool:
         inputs = dict(pool.map(get, specs))
-    if len(inputs["cn_domains"]) < 100000 or len(inputs["anti_ad"]) < 100000:
+    if len(inputs["cn_domains"]) < 100000 or any(len(inputs[ad_choices[name][0]]) < (10000 if name == "AWAvenue" else 100000) for name in selected_ads):
         raise ValueError("Unexpectedly empty major rule source")
 
     def parsed(key):
@@ -225,10 +234,14 @@ def build(policy_file: Path, output: Path, cache: Path):
     categories = [{"id": "bootstrap", "policy": "DIRECT", "rules": minimize(boot)}]
     categories.append({"id": "domestic-ai", "policy": "DIRECT", "rules": minimize(parsed("domestic_ai"))})
     ad_rules = []
-    for key in ["anti_ad", "awavenue"]:
-        data = yaml.safe_load(inputs[key])
-        payload = data["payload"]
-        ad_rules.extend(domains("\n".join(payload)))
+    for name in selected_ads:
+        key = ad_choices[name][0]
+        if key == "ad_rules":
+            ad_rules.extend(domains(inputs[key].decode("utf-8-sig")))
+        else:
+            data = yaml.safe_load(inputs[key])
+            payload = data["payload"]
+            ad_rules.extend(domains("\n".join(payload)))
     categories.append({"id": "ads", "policy": "REJECT", "rules": minimize(ad_rules)})
     for name, key in [("ai", "ai"), ("telegram", "telegram_domains"), ("crypto", "crypto"), ("onedrive", "onedrive"), ("microsoft", "microsoft"), ("apple", "apple"), ("google", "google")]:
         categories.append({"id": name, "policy": groups[name]["name"], "rules": minimize(parsed(key))})
@@ -236,6 +249,11 @@ def build(policy_file: Path, output: Path, cache: Path):
             categories.append({"id": "telegram-ip", "policy": groups[name]["name"], "rules": addresses(inputs["telegram_ip"].decode())})
     categories.append({"id": "cn-domains", "policy": "DIRECT", "rules": minimize(parsed("cn_domains"))})
     categories.append({"id": "cn-ip", "policy": "DIRECT", "rules": addresses(inputs["cn_ip"].decode())})
+    category_by_id = {c["id"]: c for c in categories}
+    order = policy["routing"]["order"]
+    if not order or order[-1] != "final" or len(order) != len(set(order)) or set(order[:-1]) != set(category_by_id):
+        raise ValueError("Routing order must list each supported category once, followed by final")
+    categories = [category_by_id[name] for name in order[:-1]]
     checks = check(categories)
     startup = download("https://ddgksf2013.top/rewrite/StartUpAds.conf").decode("utf-8-sig")
     if startup.lstrip().lower().startswith(("<!doctype", "<html")):

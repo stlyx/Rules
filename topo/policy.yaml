@@ -1,6 +1,6 @@
 # Canonical shared policy. Private credentials are assembled by Sub-Store.
 schema: topo-policy/v1
-status: candidate
+status: active
 date: '2026-11-16'
 sources:
   flowercloud:
@@ -214,11 +214,12 @@ business_groups:
     - region-TR
 routing:
   order:
-  - local-network-and-bootstrap
-  - explicit-user-exceptions-and-domestic-ai
-  - ads-if-enabled
+  - bootstrap
+  - ads
+  - domestic-ai
   - ai
   - telegram
+  - telegram-ip
   - crypto
   - onedrive
   - microsoft
