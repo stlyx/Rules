@@ -1,0 +1,25 @@
+topo/README.md
+  s_94337e0256873f::t_7a0126698259b9 25-28
+topo/check-runtime.js
+  s_94337e0256873f::t_a0dde36c8d1308 41-49
+topo/policy.yaml
+  s_94337e0256873f::t_3d5b36d089df88 5,73-82
+topo/runtime.js
+  s_94337e0256873f::t_344ffb77aaab90 60,62,116-120,146-157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "62bc45c6211d139142c996e7544130573e1c9dfe",
+  "prompts": {},
+  "sessions": {
+    "s_94337e0256873f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1e41d-414d-71f1-a27e-0bf0c46644e5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "stlyx <3462584+stlyx@users.noreply.github.com>"
+    }
+  }
+}
