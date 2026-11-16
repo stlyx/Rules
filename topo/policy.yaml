@@ -1,6 +1,8 @@
-# Canonical shared policy. Private credentials are assembled by Sub-Store.
+# Canonical shared policy. Mapping order defines selector and service display order.
+# Private credentials are assembled by Sub-Store.
 schema: topo-policy/v1
 status: active
+layout: manual-source-first-v1
 date: '2026-11-16'
 sources:
   flowercloud:
@@ -26,15 +28,13 @@ sources:
 selectors:
   main:
     name: 🚀 主力出口
-    default: airport-failover
+    default: airport-low
     choices:
-    - airport-failover
     - airport-low
-    - airport-all
     - self-hosted
-    - self-failover
-    - home-chain
+    - airport-all
     - cf-backup
+    - home-chain
     automatic_cross_source_fallback: false
   airport-low:
     name: 🌸 花云低倍
@@ -43,11 +43,6 @@ selectors:
       low_cost: true
     selection: manual-with-optional-auto-child
     initial_preference: preserve-current-else-hong-kong-low
-  airport-all:
-    name: 🌸 花云全量
-    filter:
-      source: flowercloud
-    selection: manual-with-optional-auto-child
   self-hosted:
     name: 🏠 自建节点
     filter:
@@ -56,22 +51,16 @@ selectors:
       - ora
     initial_preference: bwh-reality-vision
     incompatible_nodes: report-and-omit-only-in-unsupported-target
+  airport-all:
+    name: 🌸 花云全量
+    filter:
+      source: flowercloud
+    selection: manual-with-optional-auto-child
   cf-backup:
     name: ☁️ CF 备用
     filter:
       source: pages
     selection: explicit-manual-with-optional-auto-child
-  airport-failover:
-    name: 🌸 花云容灾
-    filter:
-      source: flowercloud
-      region: HK
-    selection: ordered-fallback
-    order:
-    - low-cost
-    - ordinary
-    cross_region: false
-    cross_source: false
   home-chain:
     name: 🏡 家宽链式
     filter:
@@ -81,15 +70,6 @@ selectors:
     - Mihomo
     selection: manual
     front_group: ⚡ CF前置
-  self-failover:
-    name: 🏠 自建容灾
-    filter:
-      sources:
-      - bwh
-      - ora
-    selection: ordered-fallback
-    cross_region: true
-    explicit_selection_only: true
 regions:
   sole_source: flowercloud
   required:
@@ -101,7 +81,7 @@ regions:
   optional:
   - TW
   - KR
-  default_selection: same-region-fallback-with-manual-node-options
+  default_selection: manual-low-cost-first
   optional_auto_child:
     interval_seconds: 600
     tolerance_ms: 80
@@ -109,7 +89,6 @@ regions:
   missing_region: report-no-cross-source-or-country-substitution
   classify_from: source-metadata-and-explicit-airport-name-mapping
   classify_from_emoji_alone: false
-  fallback_interval_seconds: 300
 business_groups:
   ai:
     name: 🤖 AI 服务
@@ -127,38 +106,6 @@ business_groups:
     - DIRECT
   google:
     name: 🌐 谷歌服务
-    default: main
-    choices:
-    - main
-    - airport-low
-    - airport-all
-    - self-hosted
-    - home-chain
-    - cf-backup
-    - region-HK
-    - region-JP
-    - region-SG
-    - region-US
-    - region-TR
-    - DIRECT
-  telegram:
-    name: 📨 电报
-    default: main
-    choices:
-    - main
-    - airport-low
-    - airport-all
-    - self-hosted
-    - home-chain
-    - cf-backup
-    - region-HK
-    - region-JP
-    - region-SG
-    - region-US
-    - region-TR
-    - DIRECT
-  crypto:
-    name: ₿ 加密货币
     default: main
     choices:
     - main
@@ -212,6 +159,38 @@ business_groups:
     - region-SG
     - region-US
     - region-TR
+  telegram:
+    name: 📨 电报
+    default: main
+    choices:
+    - main
+    - airport-low
+    - airport-all
+    - self-hosted
+    - home-chain
+    - cf-backup
+    - region-HK
+    - region-JP
+    - region-SG
+    - region-US
+    - region-TR
+    - DIRECT
+  crypto:
+    name: ₿ 加密货币
+    default: main
+    choices:
+    - main
+    - airport-low
+    - airport-all
+    - self-hosted
+    - home-chain
+    - cf-backup
+    - region-HK
+    - region-JP
+    - region-SG
+    - region-US
+    - region-TR
+    - DIRECT
 routing:
   order:
   - bootstrap

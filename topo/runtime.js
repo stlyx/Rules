@@ -12,7 +12,7 @@ const TOPO_COUNTRIES = {
 };
 
 async function topoManifest(seed) {
-  const key = 'topo-unified-manifest-v1';
+  const key = 'topo-unified-manifest-v1-' + seed.policy.layout;
   const fresh = scriptResourceCache.get(key + '-fresh');
   if (fresh) return fresh;
   try {
@@ -24,7 +24,7 @@ async function topoManifest(seed) {
     const body = await $substore.http.get({ url: base + 'manifest.json', timeout: 15000 });
     if (body.statusCode !== 200) throw new Error('Policy manifest unavailable');
     const manifest = { ...JSON.parse(body.body), base };
-    if (manifest.schema !== 1 || !manifest.providers?.length || !manifest.policy?.business_groups) {
+    if (manifest.schema !== 1 || !manifest.providers?.length || !manifest.policy?.business_groups || manifest.policy.layout !== seed.policy.layout) {
       throw new Error('Incomplete unified policy');
     }
     scriptResourceCache.set(key + '-fresh', manifest, 5 * 60 * 1000);
@@ -52,6 +52,18 @@ function topoRank(nodes) {
   return nodes.map((node, index) => ({ node, index })).sort((a, b) =>
     Number(!/实验/.test(a.node.name)) - Number(!/实验/.test(b.node.name)) || a.index - b.index,
   ).map(item => item.node.name);
+}
+
+function topoOrderGroups(groups, policy) {
+  const order = [
+    ...Object.values(policy.selectors).map(item => item.name),
+    ...[...policy.regions.required, ...policy.regions.optional].map(country => TOPO_COUNTRIES[country].name),
+    '♻️ 花云自动', '♻️ CF 自动', '⚡ CF前置', '🛡️ 广告控制',
+    ...Object.values(policy.business_groups).map(item => item.name),
+  ];
+  const ranks = new Map(order.map((name, index) => [name, index]));
+  for (const group of groups) if (!ranks.has(group.name)) throw new Error('Missing display order: ' + group.name);
+  return [...groups].sort((a, b) => ranks.get(a.name) - ranks.get(b.name));
 }
 
 function topoMihomo(config, manifest) {
@@ -91,19 +103,13 @@ function topoMihomo(config, manifest) {
     regionIds.push('region-' + country);
     const sorted = topoRank(found);
     const label = TOPO_COUNTRIES[country].name;
-    const fallback = '🛟 ' + label.replace(/^\S+\s*/, '') + '容灾';
-    group(fallback, 'fallback', sorted);
-    group(label, 'select', [fallback, ...sorted]);
+    group(label, 'select', sorted);
   }
-  const primaryRegion = policy.selectors['airport-failover'].filter.region;
-  const primaryNodes = airport.filter(p => new RegExp(TOPO_COUNTRIES[primaryRegion].pattern, 'i').test(p.name));
-  group(names['airport-failover'], 'fallback', topoRank(primaryNodes));
   group(names['airport-low'], 'select', topoRank(airport.filter(p => /实验/.test(p.name))));
   group('♻️ 花云自动', 'url-test', topoRank(airport), { interval: 600, tolerance: 80 });
   group(names['airport-all'], 'select', ['♻️ 花云自动', ...topoRank(airport)]);
   const orderedSelf = [...self].sort((a, b) => Number(!/\[自建\/bwh\].*reality\+vision/.test(a.name)) - Number(!/\[自建\/bwh\].*reality\+vision/.test(b.name))).map(p => p.name);
   group(names['self-hosted'], 'select', orderedSelf);
-  group('🏠 自建容灾', 'fallback', orderedSelf);
   group('♻️ CF 自动', 'url-test', cf.map(p => p.name), { interval: 600, tolerance: 80 });
   group(names['cf-backup'], 'select', ['♻️ CF 自动', ...cf.map(p => p.name)]);
   if (home.length) {
@@ -121,8 +127,7 @@ function topoMihomo(config, manifest) {
     business.push({ name: definition.name, type: 'select', proxies: [...new Set(members)] });
   }
   group('🛡️ 广告控制', 'select', ['REJECT', 'PASS']);
-  const main = groups.find(g => g.name === names.main);
-  config['proxy-groups'] = [main, ...business, ...groups.filter(g => g !== main)];
+  config['proxy-groups'] = topoOrderGroups([...groups, ...business], policy);
   config['rule-providers'] = {};
   config.rules = [];
   for (const provider of manifest.providers) {
@@ -147,21 +152,18 @@ function topoQxPolicies(policy) {
   function select(name, ids) { lines.push('static=' + name + ', ' + [...new Set(ids.filter(id => valid.has(id)).map(get))].join(', ')); }
   select(names.main, [policy.selectors.main.default, ...policy.selectors.main.choices.filter(id => id !== policy.selectors.main.default)]);
   for (const definition of Object.values(policy.business_groups)) select(definition.name, [definition.default, ...definition.choices.filter(v => v !== definition.default)]);
-  lines.push(`available=${names['airport-failover']}, server-tag-regex=${topoRegionRegex(policy.selectors['airport-failover'].filter.region)}`);
   lines.push(`static=${names['airport-low']}, server-tag-regex=^(?=[^\\[]*\\[花云\\])(?=.*实验).*$`);
   lines.push('url-latency-benchmark=♻️ 花云自动, server-tag-regex=^[^\\[]*\\[花云\\], check-interval=600, tolerance=80, alive-checking=false');
   lines.push(`static=${names['airport-all']}, ♻️ 花云自动, server-tag-regex=^[^\\[]*\\[花云\\]`);
   lines.push(`static=${names['self-hosted']}, server-tag-regex=^[^\\[]*\\[自建/(?:bwh|ora)\\]`);
-  lines.push('available=🏠 自建容灾, server-tag-regex=^[^\\[]*\\[自建/(?:bwh|ora)\\]');
   lines.push('url-latency-benchmark=♻️ CF 自动, server-tag-regex=^[^\\[]*\\[CF\\], check-interval=600, tolerance=80, alive-checking=false');
   lines.push(`static=${names['cf-backup']}, ♻️ CF 自动, server-tag-regex=^[^\\[]*\\[CF\\]`);
   for (const country of regions) {
     const label = TOPO_COUNTRIES[country].name;
-    const fallback = '🛟 ' + label.replace(/^\S+\s*/, '') + '容灾';
-    lines.push(`available=${fallback}, server-tag-regex=${topoRegionRegex(country)}`);
-    lines.push(`static=${label}, ${fallback}, server-tag-regex=${topoRegionRegex(country)}`);
+    lines.push(`static=${label}, server-tag-regex=${topoRegionRegex(country)}`);
   }
-  return lines.join('\n') + '\n';
+  const groups = lines.map(line => ({ name: line.split(',')[0].split('=')[1], line }));
+  return topoOrderGroups(groups, policy).map(group => group.line).join('\n') + '\n';
 }
 
 function topoReplaceSection(text, section, content) {

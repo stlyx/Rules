@@ -22,9 +22,14 @@ const nodes = [...airport,
 ];
 const config = topoMihomo({ proxies: nodes }, manifest);
 const groups = Object.fromEntries(config['proxy-groups'].map(g => [g.name, g]));
-assert.equal(groups['🚀 主力出口'].proxies[0], '🌸 花云容灾');
-assert.deepEqual(groups['🌸 花云容灾'].proxies, ['[花云] 香港实验性 1', '[花云] 香港标准 1']);
-assert.deepEqual(groups['🛟 美国容灾'].proxies, ['[花云] 美国实验性 1', '[花云] 美国标准 1']);
+assert.equal(groups['🚀 主力出口'].proxies[0], '🌸 花云低倍');
+assert.deepEqual(groups['🇺🇸 美国'].proxies, ['[花云] 美国实验性 1', '[花云] 美国标准 1']);
+assert(config['proxy-groups'].every(group => group.type !== 'fallback' && !group.name.includes('容灾')));
+assert.deepEqual(config['proxy-groups'].slice(0, 6).map(group => group.name), [
+  '🚀 主力出口', '🌸 花云低倍', '🏠 自建节点', '🌸 花云全量', '☁️ CF 备用', '🏡 家宽链式',
+]);
+assert.deepEqual(config['proxy-groups'].slice(-2).map(group => group.name), ['📨 电报', '₿ 加密货币']);
+assert(config['proxy-groups'].findIndex(group => group.name === '🇰🇷 韩国') < config['proxy-groups'].findIndex(group => group.name === '🤖 AI 服务'));
 assert(new RegExp(topoRegionRegex('US')).test('🇺🇸 [花云] 美国实验性 1'));
 assert(!new RegExp(topoRegionRegex('US')).test('[CF] [花云] 美国实验性伪标签'));
 assert.equal(groups['🤖 AI 服务'].proxies[0], '🇺🇸 美国');
@@ -41,7 +46,11 @@ const qx = topoQxConfig(text, manifest, { nodes: 'https://example.org/new-nodes'
 assert(!qx.includes('legacy-node'));
 assert(!qx.includes('🏡 家宽链式'));
 assert(qx.includes('static=🤖 AI 服务, 🇺🇸 美国'));
-assert(qx.includes('available=🌸 花云容灾'));
+assert(!qx.includes('available='));
+assert(!qx.includes('容灾'));
+const qxGroups = qx.split('[policy]\n')[1].split('\n[')[0].trim().split('\n').map(line => line.split(',')[0].split('=')[1]);
+const mihomoOnly = new Set(['🏡 家宽链式', '⚡ CF前置', '🛡️ 广告控制']);
+assert.deepEqual(qxGroups, config['proxy-groups'].map(group => group.name).filter(name => !mihomoOnly.has(name)));
 assert(qx.includes('passphrase=PRIVATE-PLACEHOLDER'));
 
 const operatorCode = fs.readFileSync(require.resolve('./source-operator.js'), 'utf8');
@@ -59,4 +68,4 @@ assert.equal(tagged[0].name, '🇺🇸 [自建/bwh] vision');
 assert.equal(tagged[0].uuid, original[0].uuid);
 assert.deepEqual(JSON.stringify(tagged[0]['reality-opts']), JSON.stringify(original[0]['reality-opts']));
 assert.equal(JSON.stringify(original), before);
-console.log('Runtime checks passed: scoped fallback, source/country isolation, business defaults, QX capabilities and credential preservation.');
+console.log('Runtime checks passed: manual selectors first, no failover, shared display order, source/country isolation, business defaults, QX capabilities and credential preservation.');
