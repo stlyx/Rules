@@ -86,7 +86,7 @@ def main():
                         if lines and "using " + expected + "[" in lines[-1]:
                             return
                         time.sleep(.05)
-                    raise AssertionError("Unexpected core classification for " + host + "; expected " + expected)
+                    raise AssertionError("Unexpected core classification for " + host + "; expected " + expected + "; observed " + " | ".join(lines[-1:] or text.splitlines()[-3:]))
 
                 checked = 0
                 for host, expected in manifest["checks"].items():
