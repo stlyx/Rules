@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "version": "v1-1a89fa83595109e9",
-  "built_at": "2026-11-16T11:49:35.429310+00:00",
+  "version": "v1-b4e78d8265450e06",
+  "built_at": "2026-11-16T12:11:50.446566+00:00",
   "source_revisions": {
     "MetaCubeX/meta-rules-dat": "c50286e52b8f6497af083871747d4b49a4bb77a2",
     "privacy-protection-tools/anti-AD": "35507b83bb549b7af2511d3177ad04bd7ca6b04e",
@@ -139,7 +139,7 @@
   "policy": {
     "schema": "topo-policy/v1",
     "status": "active",
-    "layout": "manual-source-first-v1",
+    "layout": "manual-source-first-v2",
     "date": "2026-11-16",
     "sources": {
       "flowercloud": {
@@ -228,6 +228,19 @@
         "selection": "manual",
         "front_group": "⚡ CF前置"
       }
+    },
+    "chain_front": {
+      "name": "⚡ CF前置",
+      "default": "cf-backup",
+      "choices": [
+        "airport-low",
+        "self-hosted",
+        "airport-all",
+        "cf-backup"
+      ],
+      "platforms": [
+        "Mihomo"
+      ]
     },
     "regions": {
       "sole_source": "flowercloud",
