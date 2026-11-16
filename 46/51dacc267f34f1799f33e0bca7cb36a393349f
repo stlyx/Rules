@@ -1,0 +1,19 @@
+topo/latest.json
+  s_59d444d8614ee2::t_ff72a1e32bb27d 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4651dacc267f34f1799f33e0bca7cb36a393349f",
+  "prompts": {},
+  "sessions": {
+    "s_59d444d8614ee2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c487-7d03-76d1-98a4-85c438b4abab",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "stlyx <3462584+stlyx@users.noreply.github.com>"
+    }
+  }
+}
