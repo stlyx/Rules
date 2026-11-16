@@ -1,0 +1,3 @@
+# FlowerCloud subscription/bootstrap domains. Keep these reachable directly.
+DOMAIN-SUFFIX,api-flowercloud.com
+DOMAIN-SUFFIX,xmancdn.com
