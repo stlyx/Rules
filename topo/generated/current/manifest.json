@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "version": "v1-4b3b6d836ad79d98",
-  "built_at": "2026-11-16T10:12:22.032547+00:00",
+  "version": "v1-83931e2a1bb69add",
+  "built_at": "2026-11-16T10:19:49.124944+00:00",
   "source_revisions": {
     "MetaCubeX/meta-rules-dat": "c50286e52b8f6497af083871747d4b49a4bb77a2",
     "privacy-protection-tools/anti-AD": "35507b83bb549b7af2511d3177ad04bd7ca6b04e",
