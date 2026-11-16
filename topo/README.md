@@ -54,6 +54,16 @@ in the shared policy. URLs, order, enable flags and other options are retained;
 Baidu Maps explicitly enables the configured resource parser to extract its
 comment-wrapped rewrite and MITM sections. Both ad-control bundles use the same
 labels/options, so switching ad mode preserves them.
+YouTube subtitle translation has been removed from the maintained inventory.
+
+QX syncs existing remote resources automatically (nodes every 6 hours; routing
+and default rewrite resources every 24 hours). Changes to `[policy]` require
+updating the complete profile. Resource additions/removals can instead be
+applied through the current ad-control page's resource bundle, using the button
+for the desired ad mode. These bundles replace all three remote inventories;
+they do not replace groups, DNS or MITM settings. The old official remote-managed
+configuration documentation is marked `Removed`; no whole-profile background
+replacement is configured here.
 
 Private installation and verification records are maintained in `/opt/topo`
 on the owner's workstation, not in this public repository.

@@ -364,13 +364,6 @@ qx:
       tag: YouTube · 去广告
       legacy_tags:
       - 油管去广告@Maasea
-    youtube-subtitle-translation:
-      keep_optional: true
-      enabled: false
-      category: functional
-      tag: YouTube · 字幕翻译
-      legacy_tags:
-      - 油管字幕翻译@id77
   other_legacy_modules: archive-not-enabled-in-new-profile
   boxjs: include-only-if-selected-modules-require-it
   policy_icon_base: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/
