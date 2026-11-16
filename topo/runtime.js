@@ -183,7 +183,8 @@ function topoQxConfig(text, manifest, bindings) {
   const filter = 'https://raw.githubusercontent.com/stlyx/Rules/master/topo/generated/current/qx-' + (bindings.adsMode === 'off' ? 'off' : 'on') + '.list';
   text = topoReplaceSection(text, 'filter_remote', filter + ', tag=统一分流, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true');
   text = topoReplaceSection(text, 'filter_local', 'final,🚀 主力出口');
-  text = text.replace(/^\s*server_check_url\s*=.*$/m, 'server_check_url=https://www.gstatic.com/generate_204');
+  // QX rejects an HTTPS server_check_url when importing this configuration.
+  text = text.replace(/^\s*server_check_url\s*=.*$/m, 'server_check_url=http://www.gstatic.com/generate_204');
   return text.trimEnd() + '\n';
 }
 
