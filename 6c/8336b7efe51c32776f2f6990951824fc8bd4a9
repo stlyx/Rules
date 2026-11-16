@@ -1,0 +1,37 @@
+.github/workflows/topo-rules.yml
+  s_94337e0256873f::t_33109475c49238 1,6,9,11,14,31,43
+topo/README.md
+  s_94337e0256873f::t_06ed316526baf0 9-22,39-40,53-55
+topo/assemble.py
+  s_94337e0256873f::t_8582b17c9ba450 84-91,111-112,162,186,215
+topo/build.py
+  s_94337e0256873f::t_1913ea73bb259d 19,23-26,34-64,222,225,277,299-300,302-308,343
+topo/check-runtime.js
+  s_94337e0256873f::t_758c3a6e65941a 21,41-43,48,53,60,63-65
+topo/check_core.py
+  s_94337e0256873f::t_ba3a3ef3169156 18-21,34-35,41-44,48-50,53-54,56,59
+topo/policy.yaml
+  s_94337e0256873f::t_2cfc6426cdf0a7 5,27,72,74,253,328-350,357-358
+topo/refresh_rules.py
+  s_94337e0256873f::t_41fc0eb6635c3e 1-69
+topo/runtime.js
+  s_94337e0256873f::t_c16b1da950f378 3,16-17,22,24,68,123-124,126-127,169-179,196-197
+topo/source-operator.js
+  s_94337e0256873f::t_f521406c9e887b 17-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6c8336b7efe51c32776f2f6990951824fc8bd4a9",
+  "prompts": {},
+  "sessions": {
+    "s_94337e0256873f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1e41d-414d-71f1-a27e-0bf0c46644e5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "stlyx <3462584+stlyx@users.noreply.github.com>"
+    }
+  }
+}
