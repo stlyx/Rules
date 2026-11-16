@@ -1,0 +1,16 @@
+topo/assemble.py
+  h_fd849a306d5d93 1-199
+topo/runtime.js
+  h_fd849a306d5d93 179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1b0bb181b7bcc2276806977fa3b60dfb53ae15f9",
+  "prompts": {},
+  "humans": {
+    "h_fd849a306d5d93": {
+      "author": "stlyx <3462584+stlyx@users.noreply.github.com>"
+    }
+  }
+}
