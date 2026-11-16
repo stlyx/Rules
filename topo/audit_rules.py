@@ -137,15 +137,18 @@ def audit(folder):
     }
     for mode in ["on", "off"]:
         reference = [rule for rule in rules if mode == "on" or rule[4] != "ads"]
-        path = folder / manifest["qx_" + mode]
-        compiled = qx_rules(path)
-        if path.read_text().splitlines()[0] != "# topo unified policy " + manifest["version"]:
-            raise ValueError("QX artifact version differs from manifest")
+        paths = ([folder / manifest["qx_ads"], folder / manifest["qx_business"]] if mode == "on" else [folder / manifest["qx_business"]]) if manifest.get("qx_ads") else [folder / manifest["qx_" + mode]]
+        compiled = []
+        for path in paths:
+            compiled.extend(qx_rules(path))
+            if path.read_text().splitlines()[0] != "# topo unified policy " + manifest["version"]:
+                raise ValueError("QX artifact version differs from manifest")
         left, right = Index(reference, fallback), Index(compiled, fallback)
         edge_hosts = [word + "." + suffix for word, _ in left.keywords for suffix in ["google.com", "microsoft.com", "example.org"]]
         report["modes"][mode] = {
             "qx_rules": len(compiled),
-            "qx_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "qx_files": [p.name for p in paths],
+            "qx_sha256": hashlib.sha256(b"\n".join(p.read_bytes() for p in paths)).hexdigest(),
             "source_domain_cases": compare(sorted(hosts), left.domain, lambda host: right.domain(host, qx=True)),
             "ip_boundaries": compare(sorted(addresses, key=lambda ip: (ip.version, int(ip))), left.address, lambda ip: right.address(ip, qx=True)),
             "keyword_cross_category_cases": compare(edge_hosts, left.domain, lambda host: right.domain(host, qx=True)),
@@ -160,10 +163,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rules", type=Path, required=True)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args()
     result = audit(args.rules)
     rendered = json.dumps(result, ensure_ascii=False, indent=2) + "\n"
     if args.output:
         args.output.write_text(rendered)
-    print(rendered, end="")
+    print(json.dumps({"version": result["version"], "all_probes_match": result["all_probes_match"]}) if args.quiet else rendered, end="\n" if args.quiet else "")
     raise SystemExit(0 if result["all_probes_match"] else 1)

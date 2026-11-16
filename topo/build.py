@@ -183,6 +183,22 @@ def qx_text(categories, version):
     return "\n".join(lines) + "\n"
 
 
+def qx_manual_feeds(categories):
+    """Keep complete business routes while making the ad feed optional.
+
+    QX chooses exact/more-specific hosts before broader suffixes across files.
+    Copy business rules hidden by ads into the ad resource as REJECT rules,
+    preserving both ad priority and the business route when that resource is off.
+    """
+    normal = qx_disjoint(categories)
+    business = qx_disjoint([c for c in categories if c["id"] != "ads"])
+    kept = {r for c in normal if c["id"] != "ads" for r in c["rules"]}
+    ads = next(c for c in normal if c["id"] == "ads")
+    covered = [r for c in business for r in c["rules"] if r not in kept]
+    rules = list(dict.fromkeys([*ads["rules"], *covered]))
+    return business, [{**ads, "rules": rules}], len(rules) - len(ads["rules"])
+
+
 def classify(host, categories, *, qx=False):
     matches = []
     for order, category in enumerate(categories):
@@ -216,9 +232,11 @@ def check(categories):
     normal = qx_disjoint(categories)
     paused = [c for c in categories if c["id"] != "ads"]
     paused_qx = qx_disjoint(paused)
+    business_feed, ad_feed, _ = qx_manual_feeds(categories)
+    manual = [*ad_feed, *business_feed]
     results = {}
     for host, expected in cases.items():
-        values = [classify(host, categories), classify(host, normal, qx=True), classify(host, paused), classify(host, paused_qx, qx=True)]
+        values = [classify(host, categories), classify(host, normal, qx=True), classify(host, paused), classify(host, paused_qx, qx=True), classify(host, manual, qx=True), classify(host, business_feed, qx=True)]
         if any(value != expected for value in values):
             raise ValueError(f"Routing regression for {host}: {values}; expected {expected}")
         results[host] = expected
@@ -227,6 +245,9 @@ def check(categories):
         values = [classify(overlap, categories), classify(overlap, normal, qx=True), classify(overlap, paused), classify(overlap, paused_qx, qx=True)]
         if values != ["REJECT", "REJECT", "DIRECT", "DIRECT"]:
             raise ValueError("Oracle source must remain below advertising rules: " + str(values))
+    for host, target in [("ad.mi.com", "DIRECT"), ("googleads.g.doubleclick.net", "🌐 谷歌服务"), ("addthis.com", "DIRECT")]:
+        assert classify(host, manual, qx=True) == "REJECT"
+        assert classify(host, business_feed, qx=True) == target
     # Synthetic overlapping suffix/exact case, including restoration after pause.
     sample = [
         {"id": "ads", "policy": "REJECT", "rules": [Rule("DOMAIN-SUFFIX", "ads.example.com")]},
@@ -234,6 +255,9 @@ def check(categories):
     ]
     assert classify("api.ads.example.com", qx_disjoint(sample), qx=True) == "REJECT"
     assert classify("api.ads.example.com", qx_disjoint(sample[1:]), qx=True) == "business"
+    business_sample, ads_sample, _ = qx_manual_feeds(sample)
+    assert classify("api.ads.example.com", [*ads_sample, *business_sample], qx=True) == "REJECT"
+    assert classify("api.ads.example.com", business_sample, qx=True) == "business"
     return results
 
 
@@ -354,7 +378,9 @@ def build(policy_file: Path, output: Path, cache: Path):
             descriptors.append({"id": name, "category": category["id"], "policy": "🛡️ 广告控制" if category["id"] == "ads" else category["policy"], "behavior": kind, "path": relative, "count": len(rules)})
     (output / "qx-on.list").write_text(qx_text(categories, version))
     (output / "qx-off.list").write_text(qx_text([c for c in categories if c["id"] != "ads"], version))
-    manifest = {"schema": 2, "version": version, "built_at": datetime.now(timezone.utc).isoformat(), "source_revisions": revisions, "source_hashes": {k: hashlib.sha256(v).hexdigest() for k, v in inputs.items()}, "providers": descriptors, "upstream_providers": upstream, "policy": policy, "qx_on": "qx-on.list", "qx_off": "qx-off.list", "checks": checks}
+    _, ad_feed, shadow_count = qx_manual_feeds(categories)
+    (output / "qx-ads.list").write_text(qx_text(ad_feed, version))
+    manifest = {"qx_business": "qx-off.list", "qx_ads": "qx-ads.list", "qx_ad_priority_copies": shadow_count, "schema": 2, "version": version, "built_at": datetime.now(timezone.utc).isoformat(), "source_revisions": revisions, "source_hashes": {k: hashlib.sha256(v).hexdigest() for k, v in inputs.items()}, "providers": descriptors, "upstream_providers": upstream, "policy": policy, "qx_on": "qx-on.list", "qx_off": "qx-off.list", "checks": checks}
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     (output / "validation.json").write_text(json.dumps({"version": version, "domain_cases": checks, "overlapping_ad_pause_case": True, "provider_counts": {p["id"]: p["count"] for p in descriptors}}, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps({"version": version, "providers": len(descriptors), "ad_rules": len(next(c for c in categories if c["id"] == "ads")["rules"]), "checked_domains": len(checks)}, ensure_ascii=False))

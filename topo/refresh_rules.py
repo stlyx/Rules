@@ -39,6 +39,7 @@ def main():
         actions = [
             [sys.executable, str(root / "build.py"), "--policy", str(args.policy), "--output", str(stage), "--cache", str(data / "source-cache")],
             ["docker", "exec", args.container, "node", "/opt/app/data/topo-rules-code/check-runtime.js", "/opt/app/data/topo-rules/releases/" + stage.name + "/manifest.json"],
+            [sys.executable, str(root / "audit_rules.py"), "--rules", str(stage), "--output", str(stage / "audit.json"), "--quiet"],
             [sys.executable, str(root / "check_core.py"), "--rules", str(stage), "--core", str(args.core), "--upstream", "--source-cache", str(data / "source-cache")],
         ]
         try:

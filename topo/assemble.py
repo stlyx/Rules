@@ -6,7 +6,6 @@ This command does not modify the live backend.
 """
 import argparse
 import copy
-import html
 import json
 import os
 from pathlib import Path
@@ -107,19 +106,14 @@ def main():
     tokens = {x["name"]: x["token"] for x in storage["tokens"]}
     nodes_url = "https://sub.stlyx.com/share/col/all?" + urllib.parse.urlencode({"token": tokens["all"], "target": "QX"})
     allocations = folder / "new-tokens.private.json"
-    if allocations.exists():
-        new_tokens = json.loads(allocations.read_text())
-    else:
-        new_tokens = {name: tokens.get(name) or secrets.token_urlsafe(24) for name in ["qx-controls", "qx-ad-control-task", "qx-diy-noads"]}
-        allocations.write_text(json.dumps(new_tokens))
-    for name in ["qx-routing-on", "qx-routing-off"]:
-        new_tokens.setdefault(name, tokens.get(name) or secrets.token_urlsafe(24))
+    allocated = json.loads(allocations.read_text()) if allocations.exists() else {}
+    new_tokens = {name: tokens.get(name) or allocated.get(name) or secrets.token_urlsafe(24) for name in ["qx-routing", "qx-ads"]}
     allocations.write_text(json.dumps(new_tokens))
-    rule_links = {mode: share("qx-routing-" + mode, new_tokens["qx-routing-" + mode]) for mode in ["on", "off"]}
+    rule_links = {"rules": share("qx-routing", new_tokens["qx-routing"]), "ads": share("qx-ads", new_tokens["qx-ads"])}
     rule_files = []
-    for mode in ["on", "off"]:
-        code = '$content = require("fs").readFileSync("/opt/app/data/topo-rules/current/qx-' + mode + '.list", "utf8");\n$options ||= {}; $options._res = { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } };'
-        rule_files.append({"name": "qx-routing-" + mode, "displayName": "统一分流 · 上游同步 · " + mode, "source": "local", "sourceType": "local", "content": "", "noCache": True, "process": [{"type": "Script Operator", "args": {"mode": "script", "content": code}}]})
+    for name, label, path in [("qx-routing", "业务分流", manifest["qx_business"]), ("qx-ads", "广告拦截", manifest["qx_ads"])]:
+        code = '$content = require("fs").readFileSync(' + json.dumps("/opt/app/data/topo-rules/current/" + path) + ', "utf8");\n$options ||= {}; $options._res = { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } };'
+        rule_files.append({"name": name, "displayName": "QX · " + label, "source": "local", "sourceType": "local", "content": "", "noCache": True, "process": [{"type": "Script Operator", "args": {"mode": "script", "content": code}}]})
 
     text = original_files["qx-diy"]["content"]
     original_rewrites = [line for line in section(text, "rewrite_remote") if active(line)]
@@ -144,44 +138,16 @@ def main():
             seen.add(key)
     if seen != set(policy["qx"]["rewrite_modules"]):
         raise ValueError("Preserved rewrite inventory mismatch")
-    paused_rewrites = []
-    for line in new_rewrites:
-        if categories.get(tag(line)) == "ads":
-            line = re.sub(r"\benabled\s*=\s*true\b", "enabled=false", line, flags=re.I)
-            if not re.search(r"\benabled\s*=", line):
-                line += ", enabled=false"
-        paused_rewrites.append(line)
-    node_resource = nodes_url + ", tag=pnodes, update-interval=21600, opt-parser=false, enabled=true"
-    bundles = {}
-    for mode, rewrites in [("on", new_rewrites), ("off", paused_rewrites)]:
-        filters = rule_links[mode] + ", tag=统一分流 · 上游同步, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true"
-        bundles[mode] = {"server_remote": [node_resource], "filter_remote": [filters], "rewrite_remote": rewrites}
-    urls = {mode: "quantumult-x:///update-configuration?remote-resource=" + urllib.parse.quote(json.dumps(bundle, ensure_ascii=False, separators=(",", ":")), safe="") for mode, bundle in bundles.items()}
-    content = """<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>广告控制</title><style>body{font:18px system-ui;max-width:560px;margin:48px auto;padding:0 24px;color:#17202a;background:#f6f8fa}a.button{display:block;text-align:center;padding:20px;margin:18px 0;border-radius:12px;background:#1769e0;color:white;text-decoration:none}p{line-height:1.7}small{color:#596675}</style><h1>广告控制</h1><p>暂停会关闭去广告及混合净化模块（含小红书去水印、Spotify 播放增强）；旅行串串、网盘倍速、微信解锁和苹果天气保持原设置。</p>"""
-    content += '<p>首次使用前，请先从原分享链接重新导入新版 QX 完整配置。</p>'
-    content += '<a class="button" href="' + html.escape(urls["off"], quote=True) + '">暂停广告拦截</a>'
-    content += '<a class="button" href="' + html.escape(urls["on"], quote=True) + '">恢复广告拦截</a>'
-    content += "<p><small>切换时 Quantumult X 或系统可能要求确认。此入口同时切换配置内的域名广告拦截和去广告重写，功能模块不随之关闭。</small></p></html>"
-    html_headers = '$options ||= {}; $options._res = { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } };'
-    control = {"name": "qx-controls", "displayName": "QX 广告暂停与恢复", "source": "local", "sourceType": "local", "content": content, "process": [{"type": "Script Operator", "args": {"mode": "script", "content": html_headers}}]}
-    task_html = '<p><a href="' + html.escape(urls["off"], quote=True) + '">暂停广告拦截</a></p><p><a href="' + html.escape(urls["on"], quote=True) + '">恢复广告拦截</a></p><p>暂停会关闭净化类模块（含小红书去水印、Spotify 播放增强）；旅行串串、网盘倍速、微信解锁和苹果天气保持原设置。</p>'
-    task = {"name": "qx-ad-control-task", "displayName": "QX 广告控制任务", "source": "local", "sourceType": "local", "content": '$done(' + json.dumps({"title": "广告控制", "htmlMessage": task_html}, ensure_ascii=False) + ');\n', "process": []}
-    task_line = "event-interaction " + share(task["name"], new_tokens[task["name"]]) + ", tag=🛡️ 广告开关, img-url=shield.lefthalf.filled, enabled=true"
-    normal_base = replace(text, "rewrite_remote", new_rewrites)
-    normal_base = replace(normal_base, "rewrite_local", [])
-    normal_base = replace(normal_base, "task_local", [task_line])
-    off_base = replace(normal_base, "rewrite_remote", paused_rewrites)
+    base = replace(text, "rewrite_remote", new_rewrites)
+    base = replace(base, "filter_remote", [rule_links[key] + ", tag=" + label + ", update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true" for key, label in [("ads", "广告拦截"), ("rules", "业务分流")]])
+    base = replace(base, "task_local", [line for line in section(base, "task_local") if "qx-ad-control-task" not in line])
     runtime = (ROOT / "runtime.js").read_text()
-    qx_files = []
-    for mode, base in [("on", normal_base), ("off", off_base)]:
-        definition = copy.deepcopy(original_files["qx-diy"])
-        definition["name"] = "qx-diy" if mode == "on" else "qx-diy-noads"
-        definition["displayName"] = "Quantumult X · 统一配置" if mode == "on" else "Quantumult X · 暂停广告"
-        definition["content"] = base
-        bindings = {"nodes": nodes_url, "adsMode": mode, "rules": rule_links[mode]}
-        code = runtime + "\nconst TOPO_SEED = " + json.dumps(manifest, ensure_ascii=False) + ";\nconst TOPO_BINDINGS = " + json.dumps(bindings, ensure_ascii=False) + ";\n$content = topoQxConfig($content, await topoManifest(TOPO_SEED), TOPO_BINDINGS);\n"
-        definition["process"] = [{"type": "Script Operator", "args": {"mode": "script", "content": code}}]
-        qx_files.append(definition)
+    qx = copy.deepcopy(original_files["qx-diy"])
+    qx["displayName"] = "Quantumult X · 统一配置"
+    qx["content"] = base
+    bindings = {"nodes": nodes_url, **rule_links}
+    code = runtime + "\nconst TOPO_SEED = " + json.dumps(manifest, ensure_ascii=False) + ";\nconst TOPO_BINDINGS = " + json.dumps(bindings, ensure_ascii=False) + ";\n$content = topoQxConfig($content, await topoManifest(TOPO_SEED), TOPO_BINDINGS);\n"
+    qx["process"] = [{"type": "Script Operator", "args": {"mode": "script", "content": code}}]
 
     mihomo = copy.deepcopy(original_files["withlow-mihomo"])
     template = yaml.safe_load(mihomo["content"])
@@ -207,16 +173,12 @@ def main():
         raise ValueError("Missing native node collection operator")
     code = runtime + "\nasync function main(config) { return topoMihomo(config, await topoManifest(config['x-topo-policy-seed'])); }\n"
     mihomo["process"].append({"type": "Script Operator", "args": {"mode": "script", "content": code}})
-    definitions = [mihomo, *qx_files, *rule_files, control, task]
+    definitions = [mihomo, qx, *rule_files]
     (folder / "files.next.private.json").write_text(json.dumps(definitions, ensure_ascii=False, indent=2))
-    (folder / "qx-resource-bundles.private.json").write_text(json.dumps(bundles, ensure_ascii=False, indent=2))
-    (folder / "qx-shortcuts.private.json").write_text(json.dumps({"pause_url": urls["off"], "resume_url": urls["on"]}, ensure_ascii=False))
-    links = {"controls": share(control["name"], new_tokens[control["name"]]), "task": share(task["name"], new_tokens[task["name"]]), "qx_noads": share("qx-diy-noads", new_tokens["qx-diy-noads"])}
-    (folder / "new-links.private.json").write_text(json.dumps(links, ensure_ascii=False, indent=2))
     assert [line for line in new_rewrites if "旅行串串" in tag(line)] == [normalize_rewrite(line, policy) for line in travel]
-    assert [line for line in paused_rewrites if "旅行串串" in tag(line)] == [normalize_rewrite(line, policy) for line in travel]
-    assert section(normal_base, "mitm") == section(text, "mitm")
-    print(json.dumps({"files": [x["name"] for x in definitions], "travel_preserved": len(travel), "rewrite_resources": len(new_rewrites), "ad_modules": sum(categories.get(tag(line)) == "ads" for line in new_rewrites), "node_resource_count": 1, "new_scoped_tokens": len(new_tokens)}, ensure_ascii=False))
+    assert section(base, "mitm") == section(text, "mitm")
+    print(json.dumps({"files": [x["name"] for x in definitions], "travel_preserved": len(travel), "rewrite_resources": len(new_rewrites), "node_resource_count": 1, "new_scoped_tokens": len(new_tokens), "manual_ad_control": True}, ensure_ascii=False))
+
 
 
 if __name__ == "__main__":

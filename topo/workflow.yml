@@ -29,6 +29,8 @@ jobs:
         run: python topo/build.py --output "$RUNNER_TEMP/topo-current" --cache "$RUNNER_TEMP/topo-source-cache"
       - name: Check runtime and platform boundaries
         run: node topo/check-runtime.js "$RUNNER_TEMP/topo-current/manifest.json"
+      - name: Verify independently toggled QX ad and business feeds
+        run: python topo/audit_rules.py --rules "$RUNNER_TEMP/topo-current" --quiet
       - name: Verify native upstream formats and ad pause with Mihomo 1.19.33
         run: |
           curl --fail --location --retry 2 -o "$RUNNER_TEMP/mihomo.gz" https://github.com/MetaCubeX/mihomo/releases/download/v1.19.33/mihomo-linux-amd64-compatible-v1.19.33.gz

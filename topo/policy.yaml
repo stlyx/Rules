@@ -2,7 +2,7 @@
 # Private credentials are assembled by Sub-Store.
 schema: topo-policy/v1
 status: active
-layout: direct-upstream-rewrites-v3
+layout: manual-qx-resources-v4
 date: '2026-11-16'
 sources:
   flowercloud:
@@ -254,17 +254,12 @@ ads:
   pause_preserves_normal_business_routing: true
   mihomo_pause: REJECT-to-PASS-verified
   qx_pause:
-    mechanism: full-remote-resource-bundle-through-official-update-configuration-url-scheme
-    entries:
-    - pause-ads-shortcut
-    - restore-ads-shortcut
-    remove_domain_ad_resource: true
-    disable_pure_ad_rewrites: true
-    preserve_functional_rewrites: true
+    mechanism: manual-filter-and-rewrite-resource-toggles
+    ad_filter_tag: 广告拦截
+    business_filter_tag: 业务分流
+    separate_ad_filter_resource: true
+    rewrite_control: native-qx-resource-switches
     disable_global_mitm: false
-    require_complete_resource_inventory: true
-    confirmation_behavior: device-test-required-not-guaranteed-silent
-    automatic_background_restore: not-promised
   external_browser_extensions_in_pause_scope: false
 qx:
   server_remote_count: 1
@@ -474,6 +469,8 @@ qx:
     - 443
     direct_hosts:
     - ad.12306.cn
+  filter_remote_count: 2
+  filter_remote_authority: shared-business-feed-and-separate-ad-feed
 publishing:
   auto_check_interval_hours: 24
   reject_empty_or_invalid_updates: true

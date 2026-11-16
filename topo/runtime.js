@@ -227,8 +227,12 @@ function topoQxConfig(text, manifest, bindings) {
   text = topoReplaceSection(text, 'policy', topoQxPolicies(manifest.policy));
   text = topoReplaceSection(text, 'server_remote', bindings.nodes + ', tag=pnodes, update-interval=21600, opt-parser=false, enabled=true');
   text = topoReplaceSection(text, 'server_local', '');
-  if (!bindings.rules) throw new Error('Missing upstream QX routing feed');
-  text = topoReplaceSection(text, 'filter_remote', bindings.rules + ', tag=统一分流 · 上游同步, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true');
+  if (!bindings.rules || !bindings.ads) throw new Error('Missing QX business or ad feed');
+  text = topoReplaceSection(text, 'filter_remote', [
+    bindings.ads + ', tag=广告拦截, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true',
+    bindings.rules + ', tag=业务分流, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true',
+  ].join('\n'));
+  text = text.replace(/^event-interaction[^\n]*,\s*tag=(?:🛡️\s*)?广告开关(?:,|$)[^\n]*\n?/gm, '');
   const requirements = manifest.policy.qx.rewrite_requirements || {};
   text = topoReplaceSection(text, 'filter_local', [...(requirements.direct_hosts || []).map(host => 'host,' + host + ',direct'), 'final,🚀 主力出口'].join('\n'));
   if (requirements.udp_drop_ports?.length) {

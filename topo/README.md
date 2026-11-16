@@ -10,8 +10,8 @@ Mihomo tracks the upstream branches of MetaCubeX, anti-AD, AWAvenue and
 blackmatrix7 Oracle. Only the small FlowerCloud direct-domain list is hosted
 in this repository (`FlowerCloudDirect.list`); profiles do not fetch generated
 catalogs or manifests from it. QX uses two scoped Sub-Store
-resources backed by the same source snapshot; conversion preserves the shared
-priority rules. The generated lists live on the server's persisted filesystem,
+resources backed by the same source snapshot: one business feed and one
+independently enabled ad feed; conversion preserves the shared priority rules. The generated lists live on the server's persisted filesystem,
 outside Sub-Store's configuration database.
 
 `refresh_rules.py` runs daily on the Sub-Store host. It builds a candidate,
@@ -52,8 +52,8 @@ emitted as empty strings for old decoders; supplied keys and ciphers are kept.
 QX rewrite resource labels use `Application · Function`, with aliases recorded
 in the shared policy. URLs, order, enable flags and other options are retained;
 Baidu Maps explicitly enables the configured resource parser to extract its
-comment-wrapped rewrite and MITM sections. Both ad-control bundles use the same
-labels/options, so switching ad mode preserves them.
+comment-wrapped rewrite and MITM sections. QX keeps one complete profile;
+there are no ad-control pages, interaction tasks or separate paused profiles.
 YouTube subtitle translation has been removed from the maintained inventory.
 
 Rewrite resources reference their original upstreams directly, including the full
@@ -65,18 +65,20 @@ accepted. URLs, parser flags and refresh intervals for public modules live in
 The 12306 rewrite requires `ad.12306.cn` to bypass DNS ad rejection, so QX has
 one exact-host direct exception before its fallback. This is a QX rewrite
 requirement; Mihomo keeps its domain ad blocking. XiaoHongShu's upstream setup
-requires UDP port 443 in QX's `udp_drop_list`. The mixed cleanup modules for
-XiaoHongShu and Spotify pause as a whole with ads, including their added features;
-Baidu Pan speed, WeChat link unblocking and WeatherKit remain in functional mode.
+requires UDP port 443 in QX's `udp_drop_list`. Rewrite resources, including mixed cleanup modules such as XiaoHongShu and
+Spotify, are enabled or disabled manually in QX.
 
 QX syncs existing remote resources automatically (nodes every 6 hours; routing
-and default rewrite resources every 24 hours). Changes to `[policy]` require
-updating the complete profile. Resource additions/removals can instead be
-applied through the current ad-control page's resource bundle, using the button
-for the desired ad mode. These bundles replace all three remote inventories;
-they do not replace groups, DNS or MITM settings. The old official remote-managed
-configuration documentation is marked `Removed`; no whole-profile background
-replacement is configured here.
+and default rewrite resources every 24 hours). Changes to `[policy]` or resource
+inventories require updating the complete profile. Ad blocking is controlled by
+the native switch on the `广告拦截` filter resource; individual rewrites use their
+native switches. The business feed stays complete when ads are disabled.
+
+The ad feed copies domain rules hidden by an earlier ad suffix into equal-priority
+REJECT entries. This preserves ad precedence across QX's two resources without
+removing business entries needed when the ad resource is off. The daily refresh
+and CI audit both switch states against the native rule model. Combined on/off
+artifacts are retained as validation references, not Sub-Store profile files.
 
 Private installation and verification records are maintained in `/opt/topo`
 on the owner's workstation, not in this public repository.
