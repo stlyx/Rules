@@ -1,0 +1,25 @@
+topo/generated/current/manifest.json
+  s_59d444d8614ee2::t_31078a9aef3ab9 3-4,8,50-57,141,402-404,407
+topo/generated/current/qx-off.list
+  s_59d444d8614ee2::t_3c73af1644e727 1
+topo/generated/current/qx-on.list
+  s_59d444d8614ee2::t_570e850a92aac6 1,9085,50248,62817,73855,102698-102827
+topo/generated/current/validation.json
+  s_59d444d8614ee2::t_c7c5d3ed51011f 2,31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a8e3738c34f2117b405b5445b51a1954484b8cdf",
+  "prompts": {},
+  "sessions": {
+    "s_59d444d8614ee2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c487-7d03-76d1-98a4-85c438b4abab",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "stlyx <3462584+stlyx@users.noreply.github.com>"
+    }
+  }
+}
