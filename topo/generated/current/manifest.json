@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "version": "v1-5673edff47f13c8f",
-  "built_at": "2026-11-16T11:09:35.616616+00:00",
+  "version": "v1-7421d07b504b7c89",
+  "built_at": "2026-11-16T11:45:16.306954+00:00",
   "source_revisions": {
     "MetaCubeX/meta-rules-dat": "c50286e52b8f6497af083871747d4b49a4bb77a2",
     "privacy-protection-tools/anti-AD": "35507b83bb549b7af2511d3177ad04bd7ca6b04e",
@@ -139,6 +139,7 @@
   "policy": {
     "schema": "topo-policy/v1",
     "status": "active",
+    "layout": "manual-source-first-v1",
     "date": "2026-11-16",
     "sources": {
       "flowercloud": {
@@ -171,15 +172,13 @@
     "selectors": {
       "main": {
         "name": "🚀 主力出口",
-        "default": "airport-failover",
+        "default": "airport-low",
         "choices": [
-          "airport-failover",
           "airport-low",
-          "airport-all",
           "self-hosted",
-          "self-failover",
-          "home-chain",
-          "cf-backup"
+          "airport-all",
+          "cf-backup",
+          "home-chain"
         ],
         "automatic_cross_source_fallback": false
       },
@@ -192,13 +191,6 @@
         "selection": "manual-with-optional-auto-child",
         "initial_preference": "preserve-current-else-hong-kong-low"
       },
-      "airport-all": {
-        "name": "🌸 花云全量",
-        "filter": {
-          "source": "flowercloud"
-        },
-        "selection": "manual-with-optional-auto-child"
-      },
       "self-hosted": {
         "name": "🏠 自建节点",
         "filter": {
@@ -210,26 +202,19 @@
         "initial_preference": "bwh-reality-vision",
         "incompatible_nodes": "report-and-omit-only-in-unsupported-target"
       },
+      "airport-all": {
+        "name": "🌸 花云全量",
+        "filter": {
+          "source": "flowercloud"
+        },
+        "selection": "manual-with-optional-auto-child"
+      },
       "cf-backup": {
         "name": "☁️ CF 备用",
         "filter": {
           "source": "pages"
         },
         "selection": "explicit-manual-with-optional-auto-child"
-      },
-      "airport-failover": {
-        "name": "🌸 花云容灾",
-        "filter": {
-          "source": "flowercloud",
-          "region": "HK"
-        },
-        "selection": "ordered-fallback",
-        "order": [
-          "low-cost",
-          "ordinary"
-        ],
-        "cross_region": false,
-        "cross_source": false
       },
       "home-chain": {
         "name": "🏡 家宽链式",
@@ -242,18 +227,6 @@
         ],
         "selection": "manual",
         "front_group": "⚡ CF前置"
-      },
-      "self-failover": {
-        "name": "🏠 自建容灾",
-        "filter": {
-          "sources": [
-            "bwh",
-            "ora"
-          ]
-        },
-        "selection": "ordered-fallback",
-        "cross_region": true,
-        "explicit_selection_only": true
       }
     },
     "regions": {
@@ -269,7 +242,7 @@
         "TW",
         "KR"
       ],
-      "default_selection": "same-region-fallback-with-manual-node-options",
+      "default_selection": "manual-low-cost-first",
       "optional_auto_child": {
         "interval_seconds": 600,
         "tolerance_ms": 80,
@@ -277,8 +250,7 @@
       },
       "missing_region": "report-no-cross-source-or-country-substitution",
       "classify_from": "source-metadata-and-explicit-airport-name-mapping",
-      "classify_from_emoji_alone": false,
-      "fallback_interval_seconds": 300
+      "classify_from_emoji_alone": false
     },
     "business_groups": {
       "ai": {
@@ -299,42 +271,6 @@
       },
       "google": {
         "name": "🌐 谷歌服务",
-        "default": "main",
-        "choices": [
-          "main",
-          "airport-low",
-          "airport-all",
-          "self-hosted",
-          "home-chain",
-          "cf-backup",
-          "region-HK",
-          "region-JP",
-          "region-SG",
-          "region-US",
-          "region-TR",
-          "DIRECT"
-        ]
-      },
-      "telegram": {
-        "name": "📨 电报",
-        "default": "main",
-        "choices": [
-          "main",
-          "airport-low",
-          "airport-all",
-          "self-hosted",
-          "home-chain",
-          "cf-backup",
-          "region-HK",
-          "region-JP",
-          "region-SG",
-          "region-US",
-          "region-TR",
-          "DIRECT"
-        ]
-      },
-      "crypto": {
-        "name": "₿ 加密货币",
         "default": "main",
         "choices": [
           "main",
@@ -394,6 +330,42 @@
           "region-SG",
           "region-US",
           "region-TR"
+        ]
+      },
+      "telegram": {
+        "name": "📨 电报",
+        "default": "main",
+        "choices": [
+          "main",
+          "airport-low",
+          "airport-all",
+          "self-hosted",
+          "home-chain",
+          "cf-backup",
+          "region-HK",
+          "region-JP",
+          "region-SG",
+          "region-US",
+          "region-TR",
+          "DIRECT"
+        ]
+      },
+      "crypto": {
+        "name": "₿ 加密货币",
+        "default": "main",
+        "choices": [
+          "main",
+          "airport-low",
+          "airport-all",
+          "self-hosted",
+          "home-chain",
+          "cf-backup",
+          "region-HK",
+          "region-JP",
+          "region-SG",
+          "region-US",
+          "region-TR",
+          "DIRECT"
         ]
       }
     },
