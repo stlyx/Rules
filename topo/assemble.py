@@ -70,8 +70,6 @@ def main():
     storage = json.loads((folder / "storage.before.json").read_text())
     original_files = {x["name"]: x for x in storage["files"]}
     manifest = json.loads((folder / "generated/manifest.json").read_text())
-    published = json.loads((folder / "github.published.json").read_text())
-    manifest["base"] = f"https://raw.githubusercontent.com/stlyx/Rules/{published['snapshot_revision']}/topo/generated/current/"
     tokens = {x["name"]: x["token"] for x in storage["tokens"]}
     nodes_url = "https://sub.stlyx.com/share/col/all?" + urllib.parse.urlencode({"token": tokens["all"], "target": "QX"})
     allocations = folder / "new-tokens.private.json"
@@ -83,6 +81,14 @@ def main():
     if "qx-startup-guarded" not in new_tokens:
         new_tokens["qx-startup-guarded"] = secrets.token_urlsafe(24)
         allocations.write_text(json.dumps(new_tokens))
+    for name in ["qx-routing-on", "qx-routing-off"]:
+        new_tokens.setdefault(name, secrets.token_urlsafe(24))
+    allocations.write_text(json.dumps(new_tokens))
+    rule_links = {mode: share("qx-routing-" + mode, new_tokens["qx-routing-" + mode]) for mode in ["on", "off"]}
+    rule_files = []
+    for mode in ["on", "off"]:
+        code = '$content = require("fs").readFileSync("/opt/app/data/topo-rules/current/qx-' + mode + '.list", "utf8");\n$options ||= {}; $options._res = { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } };'
+        rule_files.append({"name": "qx-routing-" + mode, "displayName": "统一分流 · 上游同步 · " + mode, "source": "local", "sourceType": "local", "content": "", "noCache": True, "process": [{"type": "Script Operator", "args": {"mode": "script", "content": code}}]})
 
     text = original_files["qx-diy"]["content"]
     protected_hosts = []
@@ -102,7 +108,8 @@ $content = $content.split(/\\r?\\n/).map(line => {
   return '^(?!https?://' + protectedPattern + ')(?:' + pattern + ')' + line.slice(index);
 }).join('\\n');
 '''.replace("PROTECTED", json.dumps(protected_pattern))
-    guarded_startup = {"name": "qx-startup-guarded", "displayName": "QX 通用去开屏 · 保留自定义主机", "source": "remote", "sourceType": "remote", "url": "https://raw.githubusercontent.com/stlyx/Rules/master/topo/generated/current/rewrites/startup.conf", "process": [{"type": "Script Operator", "args": {"mode": "script", "content": guard_code}}]}
+    startup_loader = '$content = require("fs").readFileSync("/opt/app/data/topo-rules/current/rewrites/startup.conf", "utf8");'
+    guarded_startup = {"name": "qx-startup-guarded", "displayName": "QX 通用去开屏 · 保留自定义主机", "source": "local", "sourceType": "local", "content": "", "process": [{"type": "Script Operator", "args": {"mode": "script", "content": startup_loader}}, {"type": "Script Operator", "args": {"mode": "script", "content": guard_code}}]}
     original_rewrites = [line for line in section(text, "rewrite_remote") if active(line)]
     travel = [line for line in original_rewrites if "旅行串串" in tag(line)]
     if len(travel) != 4:
@@ -152,7 +159,7 @@ $content = $content.split(/\\r?\\n/).map(line => {
     node_resource = nodes_url + ", tag=pnodes, update-interval=21600, opt-parser=false, enabled=true"
     bundles = {}
     for mode, rewrites in [("on", new_rewrites), ("off", paused_rewrites)]:
-        filters = f"https://raw.githubusercontent.com/stlyx/Rules/master/topo/generated/current/qx-{mode}.list, tag=统一分流, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true"
+        filters = rule_links[mode] + ", tag=统一分流 · 上游同步, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true"
         bundles[mode] = {"server_remote": [node_resource], "filter_remote": [filters], "rewrite_remote": rewrites}
     urls = {mode: "quantumult-x:///update-configuration?remote-resource=" + urllib.parse.quote(json.dumps(bundle, ensure_ascii=False, separators=(",", ":")), safe="") for mode, bundle in bundles.items()}
     content = """<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>广告控制</title><style>body{font:18px system-ui;max-width:560px;margin:48px auto;padding:0 24px;color:#17202a;background:#f6f8fa}a.button{display:block;text-align:center;padding:20px;margin:18px 0;border-radius:12px;background:#1769e0;color:white;text-decoration:none}p{line-height:1.7}small{color:#596675}</style><h1>广告控制</h1><p>旅行串串、独立会员和功能模块保持原设置。</p>"""
@@ -176,7 +183,7 @@ $content = $content.split(/\\r?\\n/).map(line => {
         definition["name"] = "qx-diy" if mode == "on" else "qx-diy-noads"
         definition["displayName"] = "Quantumult X · 统一配置" if mode == "on" else "Quantumult X · 暂停广告"
         definition["content"] = base
-        bindings = {"nodes": nodes_url, "adsMode": mode}
+        bindings = {"nodes": nodes_url, "adsMode": mode, "rules": rule_links[mode]}
         code = runtime + "\nconst TOPO_SEED = " + json.dumps(manifest, ensure_ascii=False) + ";\nconst TOPO_BINDINGS = " + json.dumps(bindings, ensure_ascii=False) + ";\n$content = topoQxConfig($content, await topoManifest(TOPO_SEED), TOPO_BINDINGS);\n"
         definition["process"] = [{"type": "Script Operator", "args": {"mode": "script", "content": code}}]
         qx_files.append(definition)
@@ -205,7 +212,7 @@ $content = $content.split(/\\r?\\n/).map(line => {
         raise ValueError("Missing native node collection operator")
     code = runtime + "\nasync function main(config) { return topoMihomo(config, await topoManifest(config['x-topo-policy-seed'])); }\n"
     mihomo["process"].append({"type": "Script Operator", "args": {"mode": "script", "content": code}})
-    definitions = [mihomo, *qx_files, guarded_startup, control, task]
+    definitions = [mihomo, *qx_files, *rule_files, guarded_startup, control, task]
     (folder / "files.next.private.json").write_text(json.dumps(definitions, ensure_ascii=False, indent=2))
     (folder / "qx-resource-bundles.private.json").write_text(json.dumps(bundles, ensure_ascii=False, indent=2))
     (folder / "qx-shortcuts.private.json").write_text(json.dumps({"pause_url": urls["off"], "resume_url": urls["on"]}, ensure_ascii=False))

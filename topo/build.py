@@ -16,15 +16,50 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import urllib.request
 
-import yaml
+try:
+    import yaml
+except ImportError:
+    yaml = None  # The server updater uses JSON policy and generated domain YAML.
 
 META = "MetaCubeX/meta-rules-dat"
 ANTI = "privacy-protection-tools/anti-AD"
 AWA = "TG-Twilight/AWAvenue-Ads-Rule"
 CATS = "Cats-Team/AdRules"
+
+
+def load_policy(path: Path):
+    if path.suffix == ".json":
+        return json.loads(path.read_text())
+    if yaml is None:
+        raise RuntimeError("Use the installed JSON policy when PyYAML is unavailable")
+    return yaml.safe_load(path.read_text())
+
+
+def domain_payload(data: bytes) -> list[str]:
+    """Read the deliberately narrow generated domain payload used upstream.
+
+    Reject other YAML constructs rather than guessing their meaning. This
+    keeps the scheduled JSON-policy build free of third-party dependencies.
+    """
+    result, header = [], False
+    for raw in data.decode("utf-8-sig").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line == "payload:" and not header:
+            header = True
+            continue
+        match = re.fullmatch(r"-\s+(?:'([a-zA-Z0-9_+.\-]+)'|\"([a-zA-Z0-9_+.\-]+)\"|([a-zA-Z0-9_+.\-]+))", line)
+        if not header or not match:
+            raise ValueError("Unsupported generated domain payload syntax")
+        result.append(next(group for group in match.groups() if group is not None))
+    if not header or not result:
+        raise ValueError("Empty generated domain payload")
+    return result
 
 
 @dataclass(frozen=True)
@@ -184,10 +219,10 @@ def check(categories):
 
 
 def build(policy_file: Path, output: Path, cache: Path):
-    policy = yaml.safe_load(policy_file.read_text())
+    policy = load_policy(policy_file)
     cache.mkdir(parents=True, exist_ok=True)
     token = os.environ.get("GITHUB_TOKEN", "")
-    if not token:
+    if not token and shutil.which("gh"):
         auth = subprocess.run(["gh", "auth", "token"], capture_output=True, text=True)
         token = auth.stdout.strip() if auth.returncode == 0 else ""
     ad_choices = {
@@ -239,8 +274,7 @@ def build(policy_file: Path, output: Path, cache: Path):
         if key == "ad_rules":
             ad_rules.extend(domains(inputs[key].decode("utf-8-sig")))
         else:
-            data = yaml.safe_load(inputs[key])
-            payload = data["payload"]
+            payload = domain_payload(inputs[key])
             ad_rules.extend(domains("\n".join(payload)))
     categories.append({"id": "ads", "policy": "REJECT", "rules": minimize(ad_rules)})
     for name, key in [("ai", "ai"), ("telegram", "telegram_domains"), ("crypto", "crypto"), ("onedrive", "onedrive"), ("microsoft", "microsoft"), ("apple", "apple"), ("google", "google")]:
@@ -262,7 +296,16 @@ def build(policy_file: Path, output: Path, cache: Path):
     version = "v1-" + fingerprint
     output.mkdir(parents=True, exist_ok=True)
     descriptors = []
+    upstream = []
+    input_keys = {"domestic-ai": "domestic_ai", "telegram": "telegram_domains", "telegram-ip": "telegram_ip", "cn-domains": "cn_domains", "cn-ip": "cn_ip"}
     for category in categories:
+        if category["id"] == "ads":
+            for name in selected_ads:
+                key, repo, _, path = ad_choices[name]
+                upstream.append({"id": "ads-" + key.replace("_", "-"), "source_key": key, "category": "ads", "policy": "🛡️ 广告控制", "behavior": "domain", "format": "text" if key == "ad_rules" else "yaml", "url": f"https://raw.githubusercontent.com/{repo}/{revisions[repo]}/{path}"})
+        elif category["id"] != "bootstrap":
+            key = input_keys.get(category["id"], category["id"])
+            upstream.append({"id": category["id"], "source_key": key, "category": category["id"], "policy": category["policy"], "behavior": "ipcidr" if category["id"] in {"telegram-ip", "cn-ip"} else "domain", "format": "text", "url": f"https://raw.githubusercontent.com/{META}/{revisions[META]}/{policy['rule_inputs'][key]}"})
         domain_rules = [r for r in category["rules"] if r.kind in {"DOMAIN", "DOMAIN-SUFFIX"}]
         classical = [r for r in category["rules"] if r.kind not in {"DOMAIN", "DOMAIN-SUFFIX"}]
         for kind, rules in [("domain", domain_rules), ("classical", classical)]:
@@ -297,7 +340,7 @@ def build(policy_file: Path, output: Path, cache: Path):
         raise ValueError("Generic startup source unexpectedly empty")
     (output / "rewrites").mkdir(exist_ok=True)
     (output / "rewrites/startup.conf").write_text("# Curated from ddgksf2013 StartUpAds; dedicated app endpoints excluded.\n" + "\n".join(curated) + "\n")
-    manifest = {"schema": 1, "version": version, "built_at": datetime.now(timezone.utc).isoformat(), "source_revisions": revisions, "source_hashes": {k: hashlib.sha256(v).hexdigest() for k, v in inputs.items()}, "providers": descriptors, "policy": policy, "qx_on": "qx-on.list", "qx_off": "qx-off.list", "checks": checks, "startup_source_sha256": hashlib.sha256(startup.encode()).hexdigest(), "startup_dedicated_rules_removed": removed}
+    manifest = {"schema": 2, "version": version, "built_at": datetime.now(timezone.utc).isoformat(), "source_revisions": revisions, "source_hashes": {k: hashlib.sha256(v).hexdigest() for k, v in inputs.items()}, "providers": descriptors, "upstream_providers": upstream, "policy": policy, "qx_on": "qx-on.list", "qx_off": "qx-off.list", "checks": checks, "startup_source_sha256": hashlib.sha256(startup.encode()).hexdigest(), "startup_dedicated_rules_removed": removed}
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
     (output / "validation.json").write_text(json.dumps({"version": version, "domain_cases": checks, "overlapping_ad_pause_case": True, "provider_counts": {p["id"]: p["count"] for p in descriptors}}, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps({"version": version, "providers": len(descriptors), "ad_rules": len(next(c for c in categories if c["id"] == "ads")["rules"]), "checked_domains": len(checks)}, ensure_ascii=False))

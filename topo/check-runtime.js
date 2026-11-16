@@ -18,7 +18,7 @@ const nodes = [...airport,
   { name: '[CF] 美国假标签', type: 'vless', server: 'example.org' },
   { name: '[CF] [花云] 美国实验性伪标签', type: 'vless', server: 'example.org' },
   { name: '[家宽前置] front', type: 'vless', server: 'example.org' },
-  { name: '[家宽] HK-家宽-01', type: 'openvpn', server: 'example.org', 'dialer-proxy': '⚡ CF前置' },
+  { name: '[家宽] HK-家宽-01', type: 'openvpn', server: 'example.org', 'dialer-proxy': '⚡ CF 前置' },
 ];
 const config = topoMihomo({ proxies: nodes }, manifest);
 const groups = Object.fromEntries(config['proxy-groups'].map(g => [g.name, g]));
@@ -38,28 +38,31 @@ assert.equal(groups['☁️ 微软云盘'].proxies[0], 'DIRECT');
 assert.equal(groups['🍎 苹果服务'].proxies[0], 'DIRECT');
 assert.deepEqual(groups['🛡️ 广告控制'].proxies, ['REJECT', 'PASS']);
 assert(groups['🚀 主力出口'].proxies.includes('🏡 家宽链式'));
-assert.equal(groups['⚡ CF前置'].type, 'select');
-assert.deepEqual(groups['⚡ CF前置'].proxies, ['☁️ CF 备用', '🌸 花云低倍', '🏠 自建节点', '🌸 花云全量']);
-assert(config['proxy-groups'].findIndex(group => group.name === '⚡ CF前置') < config['proxy-groups'].findIndex(group => group.name === '🇺🇸 美国'));
+assert.equal(groups['⚡ CF 前置'].type, 'select');
+assert.deepEqual(groups['⚡ CF 前置'].proxies, ['☁️ CF 备用', '🌸 花云低倍', '🏠 自建节点', '🌸 花云全量']);
+assert(config['proxy-groups'].findIndex(group => group.name === '⚡ CF 前置') < config['proxy-groups'].findIndex(group => group.name === '🇺🇸 美国'));
 const badFront = structuredClone(manifest);
 badFront.policy.chain_front.choices.push('main');
 assert.throws(() => topoMihomo({ proxies: nodes }, badFront), /Unsupported residential front choice/);
 const recursiveNodes = structuredClone(nodes);
-recursiveNodes.find(node => node.name.includes('[自建/bwh]'))['dialer-proxy'] = '⚡ CF前置';
+recursiveNodes.find(node => node.name.includes('[自建/bwh]'))['dialer-proxy'] = '⚡ CF 前置';
 assert.throws(() => topoMihomo({ proxies: recursiveNodes }, manifest), /Proxy dependency cycle/);
 assert.throws(() => topoMihomo({ proxies: nodes.filter(n => !n.name.includes('[花云] 美国')) }, manifest), /Missing airport region/);
 
 const text = '[general]\nserver_check_url=https://example.org\n[policy]\nstatic=legacy,direct\n[server_remote]\nhttps://example.org/old\n[server_local]\nlegacy-node\n[filter_remote]\nhttps://example.org/old-rules\n[filter_local]\nfinal,direct\n[mitm]\npassphrase=PRIVATE-PLACEHOLDER\n';
-const qx = topoQxConfig(text, manifest, { nodes: 'https://example.org/new-nodes' });
+const qx = topoQxConfig(text, manifest, { nodes: 'https://example.org/new-nodes', rules: 'https://example.org/upstream-routing' });
 assert(!qx.includes('legacy-node'));
 assert(!qx.includes('🏡 家宽链式'));
 assert(qx.includes('static=🤖 AI 服务, 🇺🇸 美国'));
 assert(!qx.includes('available='));
 assert(!qx.includes('容灾'));
 const qxGroups = qx.split('[policy]\n')[1].split('\n[')[0].trim().split('\n').map(line => line.split(',')[0].split('=')[1]);
-const mihomoOnly = new Set(['🏡 家宽链式', '⚡ CF前置', '🛡️ 广告控制']);
+const mihomoOnly = new Set(['🏡 家宽链式', '⚡ CF 前置', '🛡️ 广告控制']);
 assert.deepEqual(qxGroups, config['proxy-groups'].map(group => group.name).filter(name => !mihomoOnly.has(name)));
 assert(qx.includes('passphrase=PRIVATE-PLACEHOLDER'));
+assert(Object.values(config['rule-providers']).every(provider => provider.url.startsWith('https://raw.githubusercontent.com/') && !provider.url.includes('/stlyx/')));
+assert(qx.includes('https://example.org/upstream-routing, tag=统一分流'));
+
 
 const operatorCode = fs.readFileSync(require.resolve('./source-operator.js'), 'utf8');
 function project(source, target, values) {

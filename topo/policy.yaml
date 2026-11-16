@@ -2,7 +2,7 @@
 # Private credentials are assembled by Sub-Store.
 schema: topo-policy/v1
 status: active
-layout: manual-source-first-v2
+layout: upstream-icons-v1
 date: '2026-11-16'
 sources:
   flowercloud:
@@ -24,7 +24,7 @@ sources:
     region_eligible: false
     platforms:
     - Mihomo
-    front_group: ⚡ CF前置
+    front_group: ⚡ CF 前置
 selectors:
   main:
     name: 🚀 主力出口
@@ -69,9 +69,9 @@ selectors:
     platforms:
     - Mihomo
     selection: manual
-    front_group: ⚡ CF前置
+    front_group: ⚡ CF 前置
 chain_front:
-  name: ⚡ CF前置
+  name: ⚡ CF 前置
   default: cf-backup
   choices:
   - airport-low
@@ -250,7 +250,7 @@ ads:
   merge: semantic-deduplication-with-allowlist-processing
   external_adblocking_dns: false
   pause_preserves_normal_business_routing: true
-  mihomo_pause: planned-REJECT-to-PASS-selector-requires-kernel-verification
+  mihomo_pause: REJECT-to-PASS-verified
   qx_pause:
     mechanism: full-remote-resource-bundle-through-official-update-configuration-url-scheme
     entries:
@@ -325,12 +325,37 @@ qx:
       category: functional
   other_legacy_modules: archive-not-enabled-in-new-profile
   boxjs: include-only-if-selected-modules-require-it
+  policy_icon_base: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/
+  policy_icons:
+    main: Proxy.png
+    airport-low: Airport.png
+    self-hosted: Server.png
+    airport-all: Global.png
+    cf-backup: Cloudflare.png
+    region-US: United_States.png
+    region-HK: Hong_Kong.png
+    region-JP: Japan.png
+    region-SG: Singapore.png
+    region-TR: Turkey.png
+    region-TW: Taiwan.png
+    region-KR: Korea.png
+    airport-auto: Auto.png
+    cf-auto: Auto.png
+    ai: AI.png
+    google: Google.png
+    microsoft: Microsoft.png
+    onedrive: OneDrive.png
+    apple: Apple.png
+    telegram: Telegram.png
+    crypto: Cryptocurrency.png
 publishing:
   auto_check_interval_hours: 24
   reject_empty_or_invalid_updates: true
   retain_last_good: true
   preserve_existing_share_urls_where_possible: true
   deploy_after: staged-config-and-device-verification
+  rule_transport: upstream-github-with-private-qx-normalization
+  refresh_location: substore-server-systemd
 known_acceptance_boundaries:
 - QX-url-scheme-confirmation-needs-device-verification
 - Node-quality-and-app-script-effect-cannot-be-inferred-from-download-or-latency

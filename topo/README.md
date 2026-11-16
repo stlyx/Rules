@@ -6,10 +6,20 @@ resources. `runtime.js` assembles platform-specific groups in private Sub-Store
 profiles. This directory must never contain subscriptions, proxy credentials,
 personal rewrite URLs or MITM private keys.
 
-The GitHub workflow refreshes daily and retains the last published snapshot on
-download, syntax or classification failure. Mihomo profiles follow `latest.json`
-and pin all provider URLs to its immutable commit. QX reads one complete routing
-file per mode (`qx-on.list` or `qx-off.list`), so categories update together.
+Active profiles do not fetch routing files or manifests from this repository.
+Mihomo references the original MetaCubeX, anti-AD and AWAvenue GitHub URLs,
+pinned to one validated revision per upstream. QX uses two scoped Sub-Store
+resources backed by the same source snapshot; conversion preserves the shared
+priority rules. The generated lists live on the server's persisted filesystem,
+outside Sub-Store's configuration database.
+
+`refresh_rules.py` runs daily on the Sub-Store host. It builds a candidate,
+checks the shared runtime and native upstream formats with Mihomo, then
+atomically advances a local snapshot symlink. Failures retain the last good
+snapshot. The installed JSON policy and strict upstream domain-payload reader
+allow the host job to use Python's standard library. No management keys or
+subscriptions are needed by the refresh job. GitHub Actions validates source
+changes and no longer publishes routing artifacts.
 
 QX shadowed exact/suffix rules are removed to preserve the ordered policy;
 paused resources are compiled separately to restore the normal business route.
@@ -26,6 +36,8 @@ Mihomo-only. Their dialer selector offers the low-cost airport, self-hosted,
 all-airport and CF selectors, with CF selected by default. The main and
 residential selectors are excluded to prevent recursive chains. All group and
 dialer dependencies are checked for cycles before returning a profile.
+The residential dialer is named `⚡ CF 前置`. QX policy icons use the upstream
+Qure icon set through each policy's native `img-url` option.
 
 Private installation and verification records are maintained in `/opt/topo`
 on the owner's workstation, not in this public repository.
@@ -38,6 +50,6 @@ one modeled probe differs; it must not be described as QX device validation.
 
 Two consistency boundaries require separate attention: the inherited
 `oraclecloud` keyword can intersect a lower-priority suffix differently in QX,
-and QX follows mutable routing URLs while Mihomo pins providers until its full
-profile is refreshed. Matching source snapshots do not synchronize device
-refresh times or the policies manually selected on each device.
+and QX refreshes its complete normalized feed while Mihomo pins providers until
+its full profile is refreshed. Matching source snapshots do not synchronize
+device refresh times or the policies manually selected on each device.

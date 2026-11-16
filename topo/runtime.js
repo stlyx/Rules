@@ -1,6 +1,6 @@
 // Shared Sub-Store runtime. The same policy IDs drive Mihomo and QX groups.
 // The installer appends either a main(config) wrapper or a QX file wrapper.
-const TOPO_LATEST = 'https://raw.githubusercontent.com/stlyx/Rules/master/topo/latest.json';
+const TOPO_RULES_ROOT = '/opt/app/data/topo-rules/current';
 const TOPO_COUNTRIES = {
   US: { name: '🇺🇸 美国', pattern: '(?:美国|美國|United States|\\bUS\\b)' },
   HK: { name: '🇭🇰 香港', pattern: '(?:香港|Hong Kong|\\bHK\\b)' },
@@ -12,29 +12,16 @@ const TOPO_COUNTRIES = {
 };
 
 async function topoManifest(seed) {
-  const key = 'topo-unified-manifest-v1-' + seed.policy.layout;
-  const fresh = scriptResourceCache.get(key + '-fresh');
-  if (fresh) return fresh;
   try {
-    const response = await $substore.http.get({ url: TOPO_LATEST, timeout: 15000 });
-    if (response.statusCode !== 200) throw new Error('Policy pointer unavailable');
-    const pointer = JSON.parse(response.body);
-    if (!/^[0-9a-f]{40}$/.test(pointer.revision)) throw new Error('Invalid policy revision');
-    const base = `https://raw.githubusercontent.com/stlyx/Rules/${pointer.revision}/topo/generated/current/`;
-    const body = await $substore.http.get({ url: base + 'manifest.json', timeout: 15000 });
-    if (body.statusCode !== 200) throw new Error('Policy manifest unavailable');
-    const manifest = { ...JSON.parse(body.body), base };
-    if (manifest.schema !== 1 || !manifest.providers?.length || !manifest.policy?.business_groups || manifest.policy.layout !== seed.policy.layout) {
+    const manifest = JSON.parse(require('fs').readFileSync(TOPO_RULES_ROOT + '/manifest.json', 'utf8'));
+    if (manifest.schema !== 2 || !manifest.upstream_providers?.length || !manifest.policy?.business_groups || manifest.policy.layout !== seed.policy.layout) {
       throw new Error('Incomplete unified policy');
     }
-    scriptResourceCache.set(key + '-fresh', manifest, 5 * 60 * 1000);
-    scriptResourceCache.set(key + '-saved', manifest, 30 * 24 * 60 * 60 * 1000);
     return manifest;
   } catch (error) {
-    const saved = scriptResourceCache.get(key + '-saved') || seed;
-    if (!saved?.providers?.length || !saved.base) throw error;
+    if (seed?.schema !== 2 || !seed.upstream_providers?.length) throw error;
     $substore.error('Using the last valid unified policy snapshot');
-    return saved;
+    return seed;
   }
 }
 
@@ -78,7 +65,7 @@ function topoMihomo(config, manifest) {
     const mapped = legacy[p.name.replace(leadingFlag, '')];
     if (!mapped) return p;
     return { ...p, name: leadingFlag.test(mapped) ? mapped : (p.name.match(leadingFlag)?.[0] || '') + mapped };
-  });
+  }).map(p => p['dialer-proxy'] === '⚡ CF前置' ? { ...p, 'dialer-proxy': policy.chain_front.name } : p);
   config.proxies = nodes;
   const origin = p => p.name.replace(leadingFlag, '').match(/^\[([^\]]+)\]\s/)?.[1];
   const airport = nodes.filter(p => origin(p) === '花云');
@@ -133,11 +120,11 @@ function topoMihomo(config, manifest) {
   group('🛡️ 广告控制', 'select', ['REJECT', 'PASS']);
   config['proxy-groups'] = topoOrderGroups([...groups, ...business], policy);
   config['rule-providers'] = {};
-  config.rules = [];
-  for (const provider of manifest.providers) {
+  config.rules = policy.bootstrap_rules.map(([kind, value]) => kind + ',' + value + ',DIRECT' + (kind.startsWith('IP-CIDR') ? ',no-resolve' : ''));
+  for (const provider of manifest.upstream_providers) {
     const id = 'topo-' + provider.id;
-    config['rule-providers'][id] = { type: 'http', behavior: provider.behavior, format: 'text', url: manifest.base + provider.path, path: './rule-providers/' + id + '.list', interval: 86400, proxy: names.main };
-    config.rules.push(`RULE-SET,${id},${provider.policy}`);
+    config['rule-providers'][id] = { type: 'http', behavior: provider.behavior, format: provider.format, url: provider.url, path: './rule-providers/' + id + (provider.format === 'yaml' ? '.yaml' : '.list'), interval: 86400, proxy: names.main };
+    config.rules.push(`RULE-SET,${id},${provider.policy}` + (provider.category === 'telegram-ip' ? ',no-resolve' : ''));
   }
   config.rules.push('MATCH,' + names.main);
   const known = new Set([...nodes.map(p => p.name), ...config['proxy-groups'].map(g => g.name), 'DIRECT', 'REJECT', 'PASS']);
@@ -179,7 +166,17 @@ function topoQxPolicies(policy) {
     lines.push(`static=${label}, server-tag-regex=${topoRegionRegex(country)}`);
   }
   const groups = lines.map(line => ({ name: line.split(',')[0].split('=')[1], line }));
-  return topoOrderGroups(groups, policy).map(group => group.line).join('\n') + '\n';
+  const ids = new Map([
+    ...Object.entries(policy.selectors).map(([id, item]) => [item.name, id]),
+    ...Object.entries(policy.business_groups).map(([id, item]) => [item.name, id]),
+    ...regions.map(country => [TOPO_COUNTRIES[country].name, 'region-' + country]),
+    ['♻️ 花云自动', 'airport-auto'], ['♻️ CF 自动', 'cf-auto'],
+  ]);
+  return topoOrderGroups(groups, policy).map(group => {
+    const icon = policy.qx.policy_icons[ids.get(group.name)];
+    if (!icon) throw new Error('Missing QX policy icon: ' + group.name);
+    return group.line + ', img-url=' + policy.qx.policy_icon_base + icon;
+  }).join('\n') + '\n';
 }
 
 function topoReplaceSection(text, section, content) {
@@ -196,8 +193,8 @@ function topoQxConfig(text, manifest, bindings) {
   text = topoReplaceSection(text, 'policy', topoQxPolicies(manifest.policy));
   text = topoReplaceSection(text, 'server_remote', bindings.nodes + ', tag=pnodes, update-interval=21600, opt-parser=false, enabled=true');
   text = topoReplaceSection(text, 'server_local', '');
-  const filter = 'https://raw.githubusercontent.com/stlyx/Rules/master/topo/generated/current/qx-' + (bindings.adsMode === 'off' ? 'off' : 'on') + '.list';
-  text = topoReplaceSection(text, 'filter_remote', filter + ', tag=统一分流, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true');
+  if (!bindings.rules) throw new Error('Missing upstream QX routing feed');
+  text = topoReplaceSection(text, 'filter_remote', bindings.rules + ', tag=统一分流 · 上游同步, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true');
   text = topoReplaceSection(text, 'filter_local', 'final,🚀 主力出口');
   // QX rejects an HTTPS server_check_url when importing this configuration.
   text = text.replace(/^\s*server_check_url\s*=.*$/m, 'server_check_url=http://www.gstatic.com/generate_204');

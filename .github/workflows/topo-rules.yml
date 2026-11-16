@@ -1,21 +1,17 @@
-name: Refresh unified proxy rules
+name: Validate unified proxy configuration
 on:
-  schedule:
-    - cron: '19 2 * * *'
   workflow_dispatch:
   push:
     paths:
-      - 'topo/policy.yaml'
-      - 'topo/build.py'
-      - 'topo/runtime.js'
+      - 'topo/**'
       - '.github/workflows/topo-rules.yml'
 permissions:
-  contents: write
+  contents: read
 concurrency:
-  group: topo-rule-refresh
+  group: topo-rule-validation
   cancel-in-progress: false
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,7 +28,7 @@ jobs:
         run: python topo/build.py --output "$RUNNER_TEMP/topo-current" --cache "$RUNNER_TEMP/topo-source-cache"
       - name: Check runtime and platform boundaries
         run: node topo/check-runtime.js "$RUNNER_TEMP/topo-current/manifest.json"
-      - name: Verify routing and ad pause with Mihomo 1.19.33
+      - name: Verify native upstream formats and ad pause with Mihomo 1.19.33
         run: |
           curl --fail --location --retry 2 -o "$RUNNER_TEMP/mihomo.gz" https://github.com/MetaCubeX/mihomo/releases/download/v1.19.33/mihomo-linux-amd64-compatible-v1.19.33.gz
           python - <<'PY'
@@ -44,27 +40,4 @@ jobs:
           binary.write_bytes(gzip.decompress(data))
           binary.chmod(0o700)
           PY
-          python topo/check_core.py --rules "$RUNNER_TEMP/topo-current" --core "$RUNNER_TEMP/mihomo"
-      - name: Publish validated snapshot and immutable pointer
-        run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          python - <<'PY'
-          import os,pathlib,shutil
-          source=pathlib.Path(os.environ['RUNNER_TEMP'])/'topo-current'
-          target=pathlib.Path('topo/generated/current')
-          if target.exists(): shutil.rmtree(target)
-          shutil.copytree(source,target)
-          PY
-          git add topo/generated/current
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Refresh unified routing resources'
-          python - <<'PY'
-          import pathlib,subprocess,json
-          revision=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
-          manifest=json.loads(pathlib.Path('topo/generated/current/manifest.json').read_text())
-          pathlib.Path('topo/latest.json').write_text(json.dumps({'revision':revision,'version':manifest['version']},indent=2)+'\n')
-          PY
-          git add topo/latest.json
-          git commit -m 'Advance validated routing snapshot'
-          git push origin HEAD:master
+          python topo/check_core.py --rules "$RUNNER_TEMP/topo-current" --core "$RUNNER_TEMP/mihomo" --upstream --source-cache "$RUNNER_TEMP/topo-source-cache"

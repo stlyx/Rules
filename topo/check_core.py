@@ -15,7 +15,10 @@ import time
 import urllib.parse
 import urllib.request
 
-import yaml
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 
 def port():
@@ -28,25 +31,32 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rules", type=Path, required=True)
     parser.add_argument("--core", type=Path, required=True)
+    parser.add_argument("--upstream", action="store_true", help="Validate the native formats downloaded from upstream")
+    parser.add_argument("--source-cache", type=Path)
     args = parser.parse_args()
     manifest = json.loads((args.rules / "manifest.json").read_text())
     proxy_port, controller = port(), port()
     with tempfile.TemporaryDirectory(prefix="topo-core-check-") as tmp:
         home = Path(tmp)
-        policies = {p["policy"] for p in manifest["providers"]} | {"🚀 主力出口"}
+        descriptors = manifest["upstream_providers"] if args.upstream else manifest["providers"]
+        if args.upstream and not args.source_cache:
+            raise ValueError("Upstream validation requires --source-cache")
+        policies = {p["policy"] for p in descriptors} | {"🚀 主力出口"}
         groups = [{"name": p, "type": "select", "proxies": ["REJECT", "PASS"] if p == "🛡️ 广告控制" else ["REJECT"]} for p in sorted(policies - {"DIRECT"})]
         groups.append({"name": "🧪 直连", "type": "select", "proxies": ["REJECT"]})
         providers, rules = {}, []
-        for provider in manifest["providers"]:
+        if args.upstream:
+            rules = [kind + "," + value + ",🧪 直连" + (",no-resolve" if kind.startswith("IP-CIDR") else "") for kind, value in manifest["policy"]["bootstrap_rules"]]
+        for provider in descriptors:
             name = provider["id"]
             file = home / (name + ".list")
-            shutil.copyfile(args.rules / provider["path"], file)
-            providers[name] = {"type": "file", "behavior": provider["behavior"], "format": "text", "path": file.name}
+            shutil.copyfile(args.source_cache / (provider["source_key"] + ".source") if args.upstream else args.rules / provider["path"], file)
+            providers[name] = {"type": "file", "behavior": provider["behavior"], "format": provider["format"] if args.upstream else "text", "path": file.name}
             policy = "🧪 直连" if provider["policy"] == "DIRECT" else provider["policy"]
-            rules.append(f"RULE-SET,{name},{policy}")
+            rules.append(f"RULE-SET,{name},{policy}" + (",no-resolve" if args.upstream and provider["category"] == "telegram-ip" else ""))
         rules.append("MATCH,🚀 主力出口")
         config = {"mixed-port": proxy_port, "bind-address": "127.0.0.1", "external-controller": f"127.0.0.1:{controller}", "allow-lan": False, "mode": "rule", "log-level": "info", "find-process-mode": "off", "dns": {"enable": False}, "proxies": [], "proxy-groups": groups, "rule-providers": providers, "rules": rules}
-        (home / "config.yaml").write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False))
+        (home / "config.yaml").write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False) if yaml else json.dumps(config, ensure_ascii=False))
         with (home / "core.log").open("w") as log:
             process = subprocess.Popen([str(args.core.resolve()), "-d", str(home), "-f", str(home / "config.yaml")], stdout=log, stderr=subprocess.STDOUT)
             try:

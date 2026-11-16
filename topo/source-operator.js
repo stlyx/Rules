@@ -14,7 +14,9 @@ function operator(proxies, targetPlatform, context) {
     else if (source.role === 'primary') prefix = '[花云] ';
     else if (source.role === 'residential-chain') prefix = proxy.type === 'openvpn' ? '[家宽] ' : '[家宽前置] ';
     else prefix = '[CF] ';
-    return { ...proxy, name: prefix + name };
+    const result = { ...proxy, name: prefix + name };
+    if (source.role === 'residential-chain' && proxy.type === 'openvpn') result['dialer-proxy'] = '⚡ CF 前置';
+    return result;
   });
   if (source.role === 'primary') {
     const required = [/香港|Hong Kong/i, /日本|Japan/i, /新加坡|Singapore/i, /美国|美國|United States/i, /土耳其|Turkey|Türkiye/i];
