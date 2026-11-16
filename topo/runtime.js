@@ -176,7 +176,7 @@ function topoQxConfig(text, manifest, bindings) {
   text = topoReplaceSection(text, 'policy', topoQxPolicies(manifest.policy));
   text = topoReplaceSection(text, 'server_remote', bindings.nodes + ', tag=pnodes, update-interval=21600, opt-parser=false, enabled=true');
   text = topoReplaceSection(text, 'server_local', '');
-  const filter = 'https://raw.githubusercontent.com/stlyx/Rules/master/topo/generated/current/qx-on.list';
+  const filter = 'https://raw.githubusercontent.com/stlyx/Rules/master/topo/generated/current/qx-' + (bindings.adsMode === 'off' ? 'off' : 'on') + '.list';
   text = topoReplaceSection(text, 'filter_remote', filter + ', tag=统一分流, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true');
   text = topoReplaceSection(text, 'filter_local', 'final,🚀 主力出口');
   text = text.replace(/^\s*server_check_url\s*=.*$/m, 'server_check_url=https://www.gstatic.com/generate_204');
