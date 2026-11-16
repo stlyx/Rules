@@ -123,7 +123,9 @@ function topoMihomo(config, manifest) {
   config.rules = policy.bootstrap_rules.map(([kind, value]) => kind + ',' + value + ',DIRECT' + (kind.startsWith('IP-CIDR') ? ',no-resolve' : ''));
   for (const provider of manifest.upstream_providers) {
     const id = 'topo-' + provider.id;
-    config['rule-providers'][id] = { type: 'http', behavior: provider.behavior, format: provider.format, url: provider.url, path: './rule-providers/' + id + (provider.format === 'yaml' ? '.yaml' : '.list'), interval: 86400, proxy: names.main };
+    const revision = provider.url.split('/')[5];
+    if (!/^[0-9a-f]{40}$/.test(revision)) throw new Error('Unpinned upstream provider');
+    config['rule-providers'][id] = { type: 'http', behavior: provider.behavior, format: provider.format, url: provider.url, path: './rule-providers/' + id + '-' + revision.slice(0, 12) + (provider.format === 'yaml' ? '.yaml' : '.list'), interval: 86400, proxy: names.main };
     config.rules.push(`RULE-SET,${id},${provider.policy}` + (provider.category === 'telegram-ip' ? ',no-resolve' : ''));
   }
   config.rules.push('MATCH,' + names.main);
