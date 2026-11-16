@@ -39,6 +39,12 @@ dialer dependencies are checked for cycles before returning a profile.
 The residential dialer is named `⚡ CF 前置`. QX policy icons use the upstream
 Qure icon set through each policy's native `img-url` option.
 
+CMFA 2.11.28.Meta receives a legacy-compatible subset from the same full share:
+OpenVPN ciphers unsupported by Mihomo 1.19.25 are omitted, and unused residential
+fronts/groups are removed. Desktop clients keep the full residential output.
+Responses vary by User-Agent and are not cached. Missing `tls-crypt` fields are
+emitted as empty strings for old decoders; supplied keys and ciphers are kept.
+
 Private installation and verification records are maintained in `/opt/topo`
 on the owner's workstation, not in this public repository.
 

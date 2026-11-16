@@ -56,18 +56,32 @@ function topoOrderGroups(groups, policy) {
 
 function topoMihomo(config, manifest) {
   const policy = manifest.policy;
+  const requestOptions = typeof $options === 'object' ? $options : null;
+  const userAgent = String(requestOptions?._req?.headers?.['user-agent'] || '');
+  const androidLegacy = config['x-topo-compatibility'] === 'android-legacy' || /^ClashMetaForAndroid\/2\.11\.28\.Meta(?:\s|$)/i.test(userAgent);
+  if (requestOptions) {
+    requestOptions._res ||= {};
+    requestOptions._res.headers = { ...requestOptions._res.headers, vary: 'User-Agent', 'cache-control': 'no-store' };
+  }
   // A private migration map keeps the existing share usable while individual
   // source processors are patched. Already tagged nodes bypass this map.
   const legacy = config['x-topo-legacy-provenance'] || {};
   const leadingFlag = /^(?:(?:\p{Regional_Indicator}{2}|🏴‍☠️|🏳️‍🌈)\s*)+/u;
-  const nodes = (config.proxies || []).filter(p => !/^(?:Traffic:|Expire:|剩余流量|套餐到期)/i.test(p.name.replace(leadingFlag, ''))).map(p => {
+  let nodes = (config.proxies || []).filter(p => !/^(?:Traffic:|Expire:|剩余流量|套餐到期)/i.test(p.name.replace(leadingFlag, ''))).map(p => {
     if (/\[(?:花云|CF|家宽|家宽前置|自建\/bwh|自建\/ora)\]/.test(p.name)) return p;
     const mapped = legacy[p.name.replace(leadingFlag, '')];
     if (!mapped) return p;
     return { ...p, name: leadingFlag.test(mapped) ? mapped : (p.name.match(leadingFlag)?.[0] || '') + mapped };
-  }).map(p => p['dialer-proxy'] === '⚡ CF前置' ? { ...p, 'dialer-proxy': policy.chain_front.name } : p);
-  config.proxies = nodes;
+  }).map(p => p['dialer-proxy'] === '⚡ CF前置' ? { ...p, 'dialer-proxy': policy.chain_front.name } : p)
+    // Mihomo 1.19.25 requires the key even when TLS-Crypt is unused.
+    .map(p => p.type === 'openvpn' && p['tls-crypt'] == null ? { ...p, 'tls-crypt': '' } : p);
   const origin = p => p.name.replace(leadingFlag, '').match(/^\[([^\]]+)\]\s/)?.[1];
+  if (androidLegacy) {
+    const supported = new Set(['AES-128-GCM', 'AES-256-GCM']);
+    nodes = nodes.filter(p => p.type !== 'openvpn' || supported.has(String(p.cipher || '').toUpperCase()));
+    if (!nodes.some(p => p.type === 'openvpn')) nodes = nodes.filter(p => origin(p) !== '家宽前置');
+  }
+  config.proxies = nodes;
   const airport = nodes.filter(p => origin(p) === '花云');
   const self = nodes.filter(p => /^(?:自建\/bwh|自建\/ora)$/.test(origin(p) || ''));
   const cf = nodes.filter(p => origin(p) === 'CF');

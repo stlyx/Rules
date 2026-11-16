@@ -15,7 +15,11 @@ function operator(proxies, targetPlatform, context) {
     else if (source.role === 'residential-chain') prefix = proxy.type === 'openvpn' ? '[家宽] ' : '[家宽前置] ';
     else prefix = '[CF] ';
     const result = { ...proxy, name: prefix + name };
-    if (source.role === 'residential-chain' && proxy.type === 'openvpn') result['dialer-proxy'] = '⚡ CF 前置';
+    if (source.role === 'residential-chain' && proxy.type === 'openvpn') {
+      result['dialer-proxy'] = '⚡ CF 前置';
+      // Older Android kernels require an explicit empty TLS-Crypt option.
+      if (result['tls-crypt'] == null) result['tls-crypt'] = '';
+    }
     return result;
   });
   if (source.role === 'primary') {
