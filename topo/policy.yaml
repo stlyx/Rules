@@ -2,7 +2,7 @@
 # Private credentials are assembled by Sub-Store.
 schema: topo-policy/v1
 status: active
-layout: upstream-icons-v1
+layout: git-rules-rewrites-v2
 date: '2026-11-16'
 sources:
   flowercloud:
@@ -204,7 +204,9 @@ business_groups:
 routing:
   order:
   - bootstrap
+  - flowercloud-direct
   - ads
+  - oracle
   - domestic-ai
   - ai
   - telegram
@@ -237,7 +239,7 @@ rule_inputs:
   apple: geo/geosite/apple.list
   cn_domains: geo/geosite/cn.list
   cn_ip: geo/geoip/cn.list
-  snapshot_consistency: same-input-revisions-for-all-targets
+  snapshot_consistency: coherent-qx-daily-build-with-independent-native-branch-refresh
   unknown_syntax: fail-candidate-build-and-retain-last-good
 ads:
   default_mode: enabled
@@ -271,58 +273,104 @@ qx:
   mitm_certificate_storage: private-device-or-private-handoff-only
   rewrite_modules:
     travel-replay:
-      preserve_verbatim: true
       enabled: false
       category: owner-functional
+      preserve_source_and_options: true
+      tag: 旅行串串 · 下载重放
+      legacy_tags:
+      - 旅行串串下载重放
     travel-record:
-      preserve_verbatim: true
       enabled: false
       category: owner-functional
+      preserve_source_and_options: true
+      tag: 旅行串串 · 下载记录
+      legacy_tags:
+      - 旅行串串下载记录
     travel-modify:
-      preserve_verbatim: true
       enabled: true
       category: owner-functional
+      preserve_source_and_options: true
+      tag: 旅行串串 · 下载修改
+      legacy_tags:
+      - 旅行串串下载修改
     travel-check:
-      preserve_verbatim: true
       enabled: false
       category: owner-functional
+      preserve_source_and_options: true
+      tag: 旅行串串 · 检查
+      legacy_tags:
+      - 旅行串串检查
     flightradar24:
       keep: true
       category: functional
+      tag: Flightradar24 · 会员解锁
+      legacy_tags:
+      - Flightradar24会员解锁@ddgksf2013
     umetrip:
       keep: true
       category: ads
       membership_effect: not-verified
+      tag: 航旅纵横 · 去广告
+      legacy_tags:
+      - 航旅纵横
     bilibili-lite:
       keep: true
       category: ads
+      tag: 哔哩哔哩 · 净化精简
+      legacy_tags:
+      - 哔哩哔哩净化精简
     amap:
       keep: true
       category: ads
+      tag: 高德地图 · 去广告
+      legacy_tags:
+      - 高德地图广告
     baidu-map:
       keep: true
       category: ads
+      tag: 百度地图 · 去广告
+      legacy_tags:
+      - 百度地图
+      opt_parser: true
     weibo-light:
       keep: true
       category: ads
       app_variant: user-confirmed-light
+      tag: 微博轻享版 · 去广告
+      legacy_tags:
+      - 微博轻享版
     startup-ads:
       keep: true
       category: ads
       dedicated-module-overlap: exclude-reviewed-overlaps
+      tag: 通用应用 · 去开屏
+      legacy_tags:
+      - 墨鱼去开屏
     wechat-miniapp:
       keep: true
       category: ads
+      tag: 微信小程序 · 去广告
+      legacy_tags:
+      - 微信小程序去广告@ddgksf2013
     wechat-unblock-links:
       keep: true
       category: functional
+      tag: 微信 · 解除链接屏蔽
+      legacy_tags:
+      - 微信解锁被屏蔽的URL@zZPiglet
     youtube-ads:
       keep: true
       category: ads
+      tag: YouTube · 去广告
+      legacy_tags:
+      - 油管去广告@Maasea
     youtube-subtitle-translation:
       keep_optional: true
       enabled: false
       category: functional
+      tag: YouTube · 字幕翻译
+      legacy_tags:
+      - 油管字幕翻译@id77
   other_legacy_modules: archive-not-enabled-in-new-profile
   boxjs: include-only-if-selected-modules-require-it
   policy_icon_base: https://raw.githubusercontent.com/Koolson/Qure/master/IconSet/Color/
@@ -356,24 +404,13 @@ publishing:
   deploy_after: staged-config-and-device-verification
   rule_transport: upstream-github-with-private-qx-normalization
   refresh_location: substore-server-systemd
+  client_rule_refs: upstream-branches
 known_acceptance_boundaries:
 - QX-url-scheme-confirmation-needs-device-verification
 - Node-quality-and-app-script-effect-cannot-be-inferred-from-download-or-latency
 - Selected-proxy-runtime-state-is-not-synchronized-between-devices
 - Shared-HTTPS-hosts-cannot-be-routed-by-request-path-in-Mihomo
 bootstrap_rules:
-- - DOMAIN-KEYWORD
-  - oraclecloud
-- - DOMAIN-SUFFIX
-  - oracledocs.com
-- - DOMAIN-SUFFIX
-  - oracle.com
-- - DOMAIN-SUFFIX
-  - oraclecloud.com
-- - DOMAIN-SUFFIX
-  - api-flowercloud.com
-- - DOMAIN-SUFFIX
-  - xmancdn.com
 - - DOMAIN-SUFFIX
   - sub.stlyx.com
 - - DOMAIN-SUFFIX
@@ -402,3 +439,18 @@ bootstrap_rules:
   - fc00::/7
 - - IP-CIDR6
   - fe80::/10
+external_rule_inputs:
+  flowercloud-direct:
+    repo: stlyx/Rules
+    branch: master
+    path: FlowerCloudDirect.list
+    policy: DIRECT
+    behavior: classical
+    format: text
+  oracle:
+    repo: blackmatrix7/ios_rule_script
+    branch: master
+    path: rule/Clash/Oracle/Oracle.list
+    policy: DIRECT
+    behavior: classical
+    format: text

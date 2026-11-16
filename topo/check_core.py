@@ -94,14 +94,15 @@ def main():
                         continue  # The pure fallback case is covered without DNS in build.py.
                     connection(host, "🧪 直连" if expected == "DIRECT" else expected)
                     checked += 1
-                for host in ["ad.mi.com", "googleads.g.doubleclick.net"]:
+                for host in ["ad.mi.com", "googleads.g.doubleclick.net", "addthis.com"]:
                     connection(host, "🛡️ 广告控制")
                 request = urllib.request.Request(f"http://127.0.0.1:{controller}/proxies/" + urllib.parse.quote("🛡️ 广告控制"), data=json.dumps({"name": "PASS"}).encode(), method="PUT", headers={"Content-Type": "application/json"})
                 with urllib.request.urlopen(request, timeout=3) as response:
                     assert response.status in {200, 204}
+                connection("addthis.com", "🧪 直连")
                 connection("ad.mi.com", "🧪 直连")
                 connection("googleads.g.doubleclick.net", "🌐 谷歌服务")
-                print(json.dumps({"core_provider_load": True, "business_cases": checked, "ad_block_and_pass_cases": 4, "pass_restores_domestic_and_google_routing": True}, ensure_ascii=False))
+                print(json.dumps({"core_provider_load": True, "business_cases": checked, "ad_block_and_pass_cases": 6, "oracle_below_ads": True, "pass_restores_domestic_and_google_routing": True}, ensure_ascii=False))
             finally:
                 process.terminate()
                 process.wait(timeout=5)

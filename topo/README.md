@@ -6,9 +6,10 @@ resources. `runtime.js` assembles platform-specific groups in private Sub-Store
 profiles. This directory must never contain subscriptions, proxy credentials,
 personal rewrite URLs or MITM private keys.
 
-Active profiles do not fetch routing files or manifests from this repository.
-Mihomo references the original MetaCubeX, anti-AD and AWAvenue GitHub URLs,
-pinned to one validated revision per upstream. QX uses two scoped Sub-Store
+Mihomo tracks the upstream branches of MetaCubeX, anti-AD, AWAvenue and
+blackmatrix7 Oracle. Only the small FlowerCloud direct-domain list is hosted
+in this repository (`FlowerCloudDirect.list`); profiles do not fetch generated
+catalogs or manifests from it. QX uses two scoped Sub-Store
 resources backed by the same source snapshot; conversion preserves the shared
 priority rules. The generated lists live on the server's persisted filesystem,
 outside Sub-Store's configuration database.
@@ -23,6 +24,9 @@ changes and no longer publishes routing artifacts.
 
 QX shadowed exact/suffix rules are removed to preserve the ordered policy;
 paused resources are compiled separately to restore the normal business route.
+Oracle uses the public blackmatrix7 list, below both ad providers. This includes
+Oracle corporate domains as maintained upstream; overlapping ad/tracker domains
+remain blocked while ads are enabled. FlowerCloud bootstrap domains precede ads.
 Mihomo keeps the ordinary business providers after the ad provider so `PASS`
 continues routing when ad interception is paused.
 
@@ -45,6 +49,12 @@ fronts/groups are removed. Desktop clients keep the full residential output.
 Responses vary by User-Agent and are not cached. Missing `tls-crypt` fields are
 emitted as empty strings for old decoders; supplied keys and ciphers are kept.
 
+QX rewrite resource labels use `Application · Function`, with aliases recorded
+in the shared policy. URLs, order, enable flags and other options are retained;
+Baidu Maps explicitly enables the configured resource parser to extract its
+comment-wrapped rewrite and MITM sections. Both ad-control bundles use the same
+labels/options, so switching ad mode preserves them.
+
 Private installation and verification records are maintained in `/opt/topo`
 on the owner's workstation, not in this public repository.
 
@@ -54,8 +64,9 @@ source domains, representative subdomains, IP prefix boundaries, ad pause and
 keyword overlaps using a static priority model. Exit status 1 means at least
 one modeled probe differs; it must not be described as QX device validation.
 
-Two consistency boundaries require separate attention: the inherited
-`oraclecloud` keyword can intersect a lower-priority suffix differently in QX,
-and QX refreshes its complete normalized feed while Mihomo pins providers until
-its full profile is refreshed. Matching source snapshots do not synchronize
-device refresh times or the policies manually selected on each device.
+Each QX build downloads one resolved revision per repository and records SHA
+and content hashes for auditing. Mihomo clients fetch branch URLs daily, while
+QX receives the server's daily normalized build. Their independent refresh times
+can temporarily produce different upstream versions. Device selections are
+also independent. The inherited Oracle keyword exception has been removed in
+favor of the public list; local/private-network bootstrap rules remain inline.

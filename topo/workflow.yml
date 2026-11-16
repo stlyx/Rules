@@ -1,0 +1,44 @@
+name: Validate unified proxy configuration
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'topo/**'
+      - 'FlowerCloudDirect.list'
+      - '.github/workflows/topo-rules.yml'
+permissions:
+  contents: read
+concurrency:
+  group: topo-rule-validation
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'PyYAML>=6,<7'
+      - name: Build and validate one source snapshot
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python topo/build.py --output "$RUNNER_TEMP/topo-current" --cache "$RUNNER_TEMP/topo-source-cache"
+      - name: Check runtime and platform boundaries
+        run: node topo/check-runtime.js "$RUNNER_TEMP/topo-current/manifest.json"
+      - name: Verify native upstream formats and ad pause with Mihomo 1.19.33
+        run: |
+          curl --fail --location --retry 2 -o "$RUNNER_TEMP/mihomo.gz" https://github.com/MetaCubeX/mihomo/releases/download/v1.19.33/mihomo-linux-amd64-compatible-v1.19.33.gz
+          python - <<'PY'
+          import os,pathlib,hashlib,gzip
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          data=(root/'mihomo.gz').read_bytes()
+          assert hashlib.sha256(data).hexdigest()=='386508bfb1c72c43b6a0eda73708ecdce82546581b0ebcb16366c53757c622b6'
+          binary=root/'mihomo'
+          binary.write_bytes(gzip.decompress(data))
+          binary.chmod(0o700)
+          PY
+          python topo/check_core.py --rules "$RUNNER_TEMP/topo-current" --core "$RUNNER_TEMP/mihomo" --upstream --source-cache "$RUNNER_TEMP/topo-source-cache"

@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'topo/**'
+      - 'FlowerCloudDirect.list'
       - '.github/workflows/topo-rules.yml'
 permissions:
   contents: read

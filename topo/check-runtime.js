@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const { topoMihomo, topoQxConfig, topoRegionRegex } = require('./runtime.js');
+const { topoMihomo, topoQxConfig, topoQxRewriteLine, topoRegionRegex } = require('./runtime.js');
 const file = process.argv[2];
 if (!file) throw new Error('Pass the generated manifest path');
 const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -60,8 +60,19 @@ const qxGroups = qx.split('[policy]\n')[1].split('\n[')[0].trim().split('\n').ma
 const mihomoOnly = new Set(['🏡 家宽链式', '⚡ CF 前置', '🛡️ 广告控制']);
 assert.deepEqual(qxGroups, config['proxy-groups'].map(group => group.name).filter(name => !mihomoOnly.has(name)));
 assert(qx.includes('passphrase=PRIVATE-PLACEHOLDER'));
-assert(Object.values(config['rule-providers']).every(provider => provider.url.startsWith('https://raw.githubusercontent.com/') && !provider.url.includes('/stlyx/')));
+assert(Object.values(config['rule-providers']).every(provider => provider.url.startsWith('https://raw.githubusercontent.com/')));
 assert(qx.includes('https://example.org/upstream-routing, tag=统一分流'));
+
+const baidu = 'https://example.org/baidu, tag=百度地图, enabled=false, opt-parser=false, update-interval=123';
+const baiduNext = topoQxRewriteLine(baidu, manifest.policy);
+assert.equal(baiduNext, 'https://example.org/baidu, tag=百度地图 · 去广告, enabled=false, opt-parser=true, update-interval=123');
+assert.equal(topoQxRewriteLine(baiduNext, manifest.policy), baiduNext);
+assert.equal(topoQxRewriteLine('https://example.org/private, tag=旅行串串下载修改, opt-parser=false, enabled=true', manifest.policy),
+  'https://example.org/private, tag=旅行串串 · 下载修改, opt-parser=false, enabled=true');
+assert(Object.values(config['rule-providers']).every(provider => ['meta', 'master', 'main'].includes(provider.url.split('/')[5])));
+assert.deepEqual(Object.entries(config['rule-providers']).filter(([, provider]) => provider.url.includes('/stlyx/')).map(([id]) => id), ['topo-flowercloud-direct']);
+const oracleRule = config.rules.indexOf('RULE-SET,topo-oracle,DIRECT');
+assert(oracleRule > 0 && config.rules.every((rule, index) => !rule.startsWith('RULE-SET,topo-ads-') || index < oracleRule));
 
 
 const operatorCode = fs.readFileSync(require.resolve('./source-operator.js'), 'utf8');

@@ -138,8 +138,8 @@ function topoMihomo(config, manifest) {
   for (const provider of manifest.upstream_providers) {
     const id = 'topo-' + provider.id;
     const revision = provider.url.split('/')[5];
-    if (!/^[0-9a-f]{40}$/.test(revision)) throw new Error('Unpinned upstream provider');
-    config['rule-providers'][id] = { type: 'http', behavior: provider.behavior, format: provider.format, url: provider.url, path: './rule-providers/' + id + '-' + revision.slice(0, 12) + (provider.format === 'yaml' ? '.yaml' : '.list'), interval: 86400, proxy: names.main };
+    if (!/^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[a-zA-Z0-9._-]+\/.+/.test(provider.url) || !/^[a-zA-Z0-9._-]+$/.test(revision)) throw new Error('Invalid upstream provider URL');
+    config['rule-providers'][id] = { type: 'http', behavior: provider.behavior, format: provider.format, url: provider.url, path: './rule-providers/' + id + '-' + (revision.length === 40 ? revision.slice(0, 12) : revision) + (provider.format === 'yaml' ? '.yaml' : '.list'), interval: 86400, proxy: names.main };
     config.rules.push(`RULE-SET,${id},${provider.policy}` + (provider.category === 'telegram-ip' ? ',no-resolve' : ''));
   }
   config.rules.push('MATCH,' + names.main);
@@ -205,6 +205,22 @@ function topoReplaceSection(text, section, content) {
   return lines.join('\n');
 }
 
+function topoQxRewriteLine(line, policy) {
+  const match = line.match(/(?:^|,)\s*tag\s*=\s*([^,]+)/);
+  if (!match || /^\s*[#;]/.test(line)) return line;
+  const tag = match[1].trim();
+  const module = Object.values(policy.qx.rewrite_modules).find(item => item.tag === tag || (item.legacy_tags || []).includes(tag));
+  if (!module) return line;
+  line = line.replace(/(,\s*tag\s*=\s*)[^,]+/, '$1' + module.tag);
+  if (typeof module.opt_parser === 'boolean') {
+    const value = 'opt-parser=' + module.opt_parser;
+    line = /(?:^|,)\s*opt-parser\s*=/.test(line)
+      ? line.replace(/opt-parser\s*=\s*[^,]+/, value)
+      : line + ', ' + value;
+  }
+  return line;
+}
+
 function topoQxConfig(text, manifest, bindings) {
   text = topoReplaceSection(text, 'policy', topoQxPolicies(manifest.policy));
   text = topoReplaceSection(text, 'server_remote', bindings.nodes + ', tag=pnodes, update-interval=21600, opt-parser=false, enabled=true');
@@ -212,9 +228,15 @@ function topoQxConfig(text, manifest, bindings) {
   if (!bindings.rules) throw new Error('Missing upstream QX routing feed');
   text = topoReplaceSection(text, 'filter_remote', bindings.rules + ', tag=统一分流 · 上游同步, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true');
   text = topoReplaceSection(text, 'filter_local', 'final,🚀 主力出口');
+  let section = '';
+  text = text.split('\n').map(line => {
+    const header = line.trim().match(/^\[([^\]]+)\]$/);
+    if (header) section = header[1];
+    return section === 'rewrite_remote' ? topoQxRewriteLine(line, manifest.policy) : line;
+  }).join('\n');
   // QX rejects an HTTPS server_check_url when importing this configuration.
   text = text.replace(/^\s*server_check_url\s*=.*$/m, 'server_check_url=http://www.gstatic.com/generate_204');
   return text.trimEnd() + '\n';
 }
 
-if (typeof module !== 'undefined') module.exports = { topoMihomo, topoQxPolicies, topoQxConfig, topoRegionRegex, topoRank, topoReplaceSection };
+if (typeof module !== 'undefined') module.exports = { topoMihomo, topoQxPolicies, topoQxConfig, topoRegionRegex, topoRank, topoReplaceSection, topoQxRewriteLine };

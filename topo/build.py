@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build public Mihomo/QX routing resources from one pinned source snapshot.
+"""Build public Mihomo/QX routing resources from one audited build snapshot and track upstream branches in clients.
 
 No subscriptions, node credentials, certificate keys or management URLs belong
 in this directory. Private full profiles are assembled by Sub-Store.
@@ -95,6 +95,21 @@ def domains(text: str, *, plain_suffix: bool = False) -> list[Rule]:
         suffix = line.startswith("+.")
         rules.append(Rule("DOMAIN-SUFFIX" if suffix or plain_suffix else "DOMAIN", domain(line[2:] if suffix else line)))
     return rules
+
+
+def classical_domains(text: str) -> list[Rule]:
+    result = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith(("#", "!", "//")):
+            continue
+        parts = line.split(",")
+        if len(parts) != 2 or parts[0] not in {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD"}:
+            raise ValueError("Unsupported external domain rule syntax")
+        result.append(Rule(parts[0], domain(parts[1])))
+    if not result:
+        raise ValueError("Empty external domain rule source")
+    return result
 
 
 def suffixes(value: str):
@@ -197,6 +212,7 @@ def check(categories):
         "onedrive.live.com": "☁️ 微软云盘", "api.onedrive.com": "☁️ 微软云盘",
         "outlook.office365.com": "Ⓜ️ 微软服务", "www.apple.com": "🍎 苹果服务", "www.baidu.com": "DIRECT",
         "api.deepseek.com": "DIRECT", "kimi.com": "DIRECT", "oraclecloud.com": "DIRECT",
+        "www.oracle.com": "DIRECT", "api-flowercloud.com": "DIRECT", "sub.xmancdn.com": "DIRECT",
         "sub.stlyx.com": "DIRECT", "example.org": "🚀 主力出口",
     }
     normal = qx_disjoint(categories)
@@ -208,6 +224,11 @@ def check(categories):
         if any(value != expected for value in values):
             raise ValueError(f"Routing regression for {host}: {values}; expected {expected}")
         results[host] = expected
+    if any(c["id"] == "oracle" for c in categories):
+        overlap = "addthis.com"
+        values = [classify(overlap, categories), classify(overlap, normal, qx=True), classify(overlap, paused), classify(overlap, paused_qx, qx=True)]
+        if values != ["REJECT", "REJECT", "DIRECT", "DIRECT"]:
+            raise ValueError("Oracle source must remain below advertising rules: " + str(values))
     # Synthetic overlapping suffix/exact case, including restoration after pause.
     sample = [
         {"id": "ads", "policy": "REJECT", "rules": [Rule("DOMAIN-SUFFIX", "ads.example.com")]},
@@ -235,6 +256,14 @@ def build(policy_file: Path, output: Path, cache: Path):
         raise ValueError("Unknown or empty advertising source selection")
     repos = {META: "meta", **{ad_choices[name][1]: ad_choices[name][2] for name in selected_ads}}
 
+    external = policy.get("external_rule_inputs", {})
+    for item in external.values():
+        if item["behavior"] != "classical" or item["format"] != "text":
+            raise ValueError("Unsupported external domain source format")
+        if item["repo"] in repos and repos[item["repo"]] != item["branch"]:
+            raise ValueError("Conflicting branches for one repository")
+        repos[item["repo"]] = item["branch"]
+
     def revision(item):
         repo, branch = item
         data = json.loads(download(f"https://api.github.com/repos/{repo}/commits/{branch}", token))
@@ -248,6 +277,8 @@ def build(policy_file: Path, output: Path, cache: Path):
             continue
         specs.append((key, META, path))
     specs.extend((key, repo, path) for key, repo, _, path in (ad_choices[name] for name in selected_ads))
+
+    specs.extend((key, item["repo"], item["path"]) for key, item in external.items())
 
     def get(spec):
         key, repo, path = spec
@@ -283,6 +314,7 @@ def build(policy_file: Path, output: Path, cache: Path):
             categories.append({"id": "telegram-ip", "policy": groups[name]["name"], "rules": addresses(inputs["telegram_ip"].decode())})
     categories.append({"id": "cn-domains", "policy": "DIRECT", "rules": minimize(parsed("cn_domains"))})
     categories.append({"id": "cn-ip", "policy": "DIRECT", "rules": addresses(inputs["cn_ip"].decode())})
+    categories.extend({"id": key, "policy": item["policy"], "rules": minimize(classical_domains(inputs[key].decode("utf-8-sig")))} for key, item in external.items())
     category_by_id = {c["id"]: c for c in categories}
     order = policy["routing"]["order"]
     if not order or order[-1] != "final" or len(order) != len(set(order)) or set(order[:-1]) != set(category_by_id):
@@ -302,10 +334,14 @@ def build(policy_file: Path, output: Path, cache: Path):
         if category["id"] == "ads":
             for name in selected_ads:
                 key, repo, _, path = ad_choices[name]
-                upstream.append({"id": "ads-" + key.replace("_", "-"), "source_key": key, "category": "ads", "policy": "🛡️ 广告控制", "behavior": "domain", "format": "text" if key == "ad_rules" else "yaml", "url": f"https://raw.githubusercontent.com/{repo}/{revisions[repo]}/{path}"})
+                upstream.append({"id": "ads-" + key.replace("_", "-"), "source_key": key, "category": "ads", "policy": "🛡️ 广告控制", "behavior": "domain", "format": "text" if key == "ad_rules" else "yaml", "url": f"https://raw.githubusercontent.com/{repo}/{repos[repo]}/{path}"})
+        elif category["id"] in external:
+            key = category["id"]
+            item = external[key]
+            upstream.append({"id": key, "source_key": key, "category": key, "policy": item["policy"], "behavior": item["behavior"], "format": item["format"], "url": f"https://raw.githubusercontent.com/{item['repo']}/{item['branch']}/{item['path']}"})
         elif category["id"] != "bootstrap":
             key = input_keys.get(category["id"], category["id"])
-            upstream.append({"id": category["id"], "source_key": key, "category": category["id"], "policy": category["policy"], "behavior": "ipcidr" if category["id"] in {"telegram-ip", "cn-ip"} else "domain", "format": "text", "url": f"https://raw.githubusercontent.com/{META}/{revisions[META]}/{policy['rule_inputs'][key]}"})
+            upstream.append({"id": category["id"], "source_key": key, "category": category["id"], "policy": category["policy"], "behavior": "ipcidr" if category["id"] in {"telegram-ip", "cn-ip"} else "domain", "format": "text", "url": f"https://raw.githubusercontent.com/{META}/{repos[META]}/{policy['rule_inputs'][key]}"})
         domain_rules = [r for r in category["rules"] if r.kind in {"DOMAIN", "DOMAIN-SUFFIX"}]
         classical = [r for r in category["rules"] if r.kind not in {"DOMAIN", "DOMAIN-SUFFIX"}]
         for kind, rules in [("domain", domain_rules), ("classical", classical)]:

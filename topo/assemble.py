@@ -53,6 +53,23 @@ def tag(line):
     return match.group(1).strip() if match else ""
 
 
+def rewrite_module(line, policy):
+    label = tag(line)
+    return next(((key, item) for key, item in policy["qx"]["rewrite_modules"].items()
+                 if label == item["tag"] or label in item.get("legacy_tags", [])), (None, None))
+
+
+def normalize_rewrite(line, policy):
+    _, module = rewrite_module(line, policy)
+    if module is None or not active(line):
+        return line
+    line = re.sub(r"(,\s*tag\s*=\s*)[^,]+", lambda m: m[1] + module["tag"], line)
+    if "opt_parser" in module:
+        option = "opt-parser=" + str(module["opt_parser"]).lower()
+        line = re.sub(r"opt-parser\s*=\s*[^,]+", option, line) if re.search(r"(?:^|,)\s*opt-parser\s*=", line) else line + ", " + option
+    return line
+
+
 def enabled(line):
     return not bool(re.search(r"\benabled\s*=\s*false\b", line, re.I))
 
@@ -70,19 +87,20 @@ def main():
     storage = json.loads((folder / "storage.before.json").read_text())
     original_files = {x["name"]: x for x in storage["files"]}
     manifest = json.loads((folder / "generated/manifest.json").read_text())
+    policy = manifest["policy"]
     tokens = {x["name"]: x["token"] for x in storage["tokens"]}
     nodes_url = "https://sub.stlyx.com/share/col/all?" + urllib.parse.urlencode({"token": tokens["all"], "target": "QX"})
     allocations = folder / "new-tokens.private.json"
     if allocations.exists():
         new_tokens = json.loads(allocations.read_text())
     else:
-        new_tokens = {name: secrets.token_urlsafe(24) for name in ["qx-controls", "qx-ad-control-task", "qx-diy-noads"]}
+        new_tokens = {name: tokens.get(name) or secrets.token_urlsafe(24) for name in ["qx-controls", "qx-ad-control-task", "qx-diy-noads"]}
         allocations.write_text(json.dumps(new_tokens))
     if "qx-startup-guarded" not in new_tokens:
-        new_tokens["qx-startup-guarded"] = secrets.token_urlsafe(24)
+        new_tokens["qx-startup-guarded"] = tokens.get("qx-startup-guarded") or secrets.token_urlsafe(24)
         allocations.write_text(json.dumps(new_tokens))
     for name in ["qx-routing-on", "qx-routing-off"]:
-        new_tokens.setdefault(name, secrets.token_urlsafe(24))
+        new_tokens.setdefault(name, tokens.get(name) or secrets.token_urlsafe(24))
     allocations.write_text(json.dumps(new_tokens))
     rule_links = {mode: share("qx-routing-" + mode, new_tokens["qx-routing-" + mode]) for mode in ["on", "off"]}
     rule_files = []
@@ -114,40 +132,20 @@ $content = $content.split(/\\r?\\n/).map(line => {
     travel = [line for line in original_rewrites if "旅行串串" in tag(line)]
     if len(travel) != 4:
         raise ValueError("Expected all four owner travel resources")
-    module_patterns = [
-        ("flightradar24", "functional", lambda t: "Flightradar24" in t),
-        ("umetrip", "ads", lambda t: t == "航旅纵横"),
-        ("bilibili-lite", "ads", lambda t: "哔哩哔哩净化精简" in t),
-        ("baidu-map", "ads", lambda t: t == "百度地图"),
-        ("amap", "ads", lambda t: "高德地图" in t),
-        ("weibo-light", "ads", lambda t: "微博轻享版" in t),
-        ("startup", "ads", lambda t: "墨鱼去开屏" in t),
-        ("wechat-miniapp", "ads", lambda t: "微信小程序" in t),
-        ("youtube-ads", "ads", lambda t: "油管去广告" in t),
-        ("wechat-links", "functional", lambda t: "微信解锁被屏蔽" in t),
-        ("youtube-subtitles", "functional", lambda t: "油管字幕翻译" in t),
-    ]
-    selected, categories = [], {}
-    for key, category, predicate in module_patterns:
-        matches = [line for line in original_rewrites if predicate(tag(line))]
-        if len(matches) != 1:
-            raise ValueError("Expected exactly one preserved module: " + key)
-        line = matches[0]
-        if key == "startup":
-            line = share("qx-startup-guarded", new_tokens["qx-startup-guarded"]) + "," + line.split(",", 1)[1]
-        selected.append(line)
-        categories[tag(line)] = category
-    # Keep the owner's four source lines in their original relative order/text.
-    chosen = set(selected)
-    new_rewrites = []
+    new_rewrites, categories, seen = [], {}, set()
     for old in original_rewrites:
-        if old in travel:
-            new_rewrites.append(old)
-        elif old in chosen:
-            new_rewrites.append(old)
-        elif "墨鱼去开屏" in tag(old):
-            new_rewrites.append(next(line for line in selected if "墨鱼去开屏" in tag(line)))
-    if len(new_rewrites) != len(travel) + len(selected):
+        key, module = rewrite_module(old, policy)
+        if key is None:
+            continue
+        if key in seen:
+            raise ValueError("Duplicate preserved rewrite module: " + key)
+        seen.add(key)
+        line = normalize_rewrite(old, policy)
+        if key == "startup-ads":
+            line = share("qx-startup-guarded", new_tokens["qx-startup-guarded"]) + "," + line.split(",", 1)[1]
+        new_rewrites.append(line)
+        categories[tag(line)] = module["category"]
+    if seen != set(policy["qx"]["rewrite_modules"]):
         raise ValueError("Preserved rewrite inventory mismatch")
     paused_rewrites = []
     for line in new_rewrites:
@@ -218,8 +216,8 @@ $content = $content.split(/\\r?\\n/).map(line => {
     (folder / "qx-shortcuts.private.json").write_text(json.dumps({"pause_url": urls["off"], "resume_url": urls["on"]}, ensure_ascii=False))
     links = {"controls": share(control["name"], new_tokens[control["name"]]), "task": share(task["name"], new_tokens[task["name"]]), "qx_noads": share("qx-diy-noads", new_tokens["qx-diy-noads"])}
     (folder / "new-links.private.json").write_text(json.dumps(links, ensure_ascii=False, indent=2))
-    assert [line for line in new_rewrites if "旅行串串" in tag(line)] == travel
-    assert [line for line in paused_rewrites if "旅行串串" in tag(line)] == travel
+    assert [line for line in new_rewrites if "旅行串串" in tag(line)] == [normalize_rewrite(line, policy) for line in travel]
+    assert [line for line in paused_rewrites if "旅行串串" in tag(line)] == [normalize_rewrite(line, policy) for line in travel]
     assert section(normal_base, "mitm") == section(text, "mitm")
     print(json.dumps({"files": [x["name"] for x in definitions], "travel_preserved": len(travel), "rewrite_resources": len(new_rewrites), "ad_modules": sum(categories.get(tag(line)) == "ads" for line in new_rewrites), "node_resource_count": 1, "new_scoped_tokens": len(new_tokens)}, ensure_ascii=False))
 
