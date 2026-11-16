@@ -1,0 +1,59 @@
+// Behavioral checks with synthetic credentials-free nodes.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const { topoMihomo, topoQxConfig } = require('./runtime.js');
+const file = process.argv[2];
+if (!file) throw new Error('Pass the generated manifest path');
+const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+manifest.base = 'https://example.org/immutable-snapshot/';
+const countries = { HK: '香港', US: '美国', JP: '日本', SG: '新加坡', TR: '土耳其', TW: '台湾', KR: '韩国' };
+const airport = Object.values(countries).flatMap(label => [
+  { name: `[花云] ${label}实验性 1`, type: 'trojan', server: 'example.org' },
+  { name: `[花云] ${label}标准 1`, type: 'trojan', server: 'example.org' },
+]);
+const nodes = [...airport,
+  { name: '🇺🇸 [自建/bwh] reality+vision 直连', type: 'vless', server: 'example.org' },
+  { name: '[自建/ora] oracle', type: 'vless', server: 'example.org' },
+  { name: '[CF] 美国假标签', type: 'vless', server: 'example.org' },
+  { name: '[家宽前置] front', type: 'vless', server: 'example.org' },
+  { name: '[家宽] HK-家宽-01', type: 'openvpn', server: 'example.org', 'dialer-proxy': '⚡ CF前置' },
+];
+const config = topoMihomo({ proxies: nodes }, manifest);
+const groups = Object.fromEntries(config['proxy-groups'].map(g => [g.name, g]));
+assert.equal(groups['🚀 主力出口'].proxies[0], '🌸 花云容灾');
+assert.deepEqual(groups['🌸 花云容灾'].proxies, ['[花云] 香港实验性 1', '[花云] 香港标准 1']);
+assert.deepEqual(groups['🛟 美国容灾'].proxies, ['[花云] 美国实验性 1', '[花云] 美国标准 1']);
+assert.equal(groups['🤖 AI 服务'].proxies[0], '🇺🇸 美国');
+assert.equal(groups['Ⓜ️ 微软服务'].proxies[0], 'DIRECT');
+assert.equal(groups['☁️ 微软云盘'].proxies[0], 'DIRECT');
+assert.equal(groups['🍎 苹果服务'].proxies[0], 'DIRECT');
+assert.deepEqual(groups['🛡️ 广告控制'].proxies, ['REJECT', 'PASS']);
+assert(groups['🚀 主力出口'].proxies.includes('🏡 家宽链式'));
+assert.deepEqual(groups['⚡ CF前置'].proxies, ['[家宽前置] front']);
+assert.throws(() => topoMihomo({ proxies: nodes.filter(n => !n.name.includes('[花云] 美国')) }, manifest), /Missing airport region/);
+
+const text = '[general]\nserver_check_url=https://example.org\n[policy]\nstatic=legacy,direct\n[server_remote]\nhttps://example.org/old\n[server_local]\nlegacy-node\n[filter_remote]\nhttps://example.org/old-rules\n[filter_local]\nfinal,direct\n[mitm]\npassphrase=PRIVATE-PLACEHOLDER\n';
+const qx = topoQxConfig(text, manifest, { nodes: 'https://example.org/new-nodes' });
+assert(!qx.includes('legacy-node'));
+assert(!qx.includes('🏡 家宽链式'));
+assert(qx.includes('static=🤖 AI 服务, 🇺🇸 美国'));
+assert(qx.includes('available=🌸 花云容灾'));
+assert(qx.includes('passphrase=PRIVATE-PLACEHOLDER'));
+
+const operatorCode = fs.readFileSync(require.resolve('./source-operator.js'), 'utf8');
+function project(source, target, values) {
+  const context = { TOPO_SOURCE: source, scriptResourceCache: { get() {}, set() {} }, $substore: { error() {} } };
+  vm.createContext(context);
+  vm.runInContext(operatorCode, context);
+  return context.operator(values, target, {});
+}
+assert.equal(project({ id: 'pages-copy8708', role: 'residential-chain' }, 'QX', nodes).length, 0);
+const original = [{ name: '🇺🇸 vision', type: 'vless', uuid: 'test-placeholder', 'reality-opts': { 'public-key': 'test-placeholder' } }];
+const before = JSON.stringify(original);
+const tagged = project({ id: 'bwh', role: 'self-hosted' }, 'mihomo', original);
+assert.equal(tagged[0].name, '🇺🇸 [自建/bwh] vision');
+assert.equal(tagged[0].uuid, original[0].uuid);
+assert.deepEqual(JSON.stringify(tagged[0]['reality-opts']), JSON.stringify(original[0]['reality-opts']));
+assert.equal(JSON.stringify(original), before);
+console.log('Runtime checks passed: scoped fallback, source/country isolation, business defaults, QX capabilities and credential preservation.');

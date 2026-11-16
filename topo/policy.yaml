@@ -1,0 +1,389 @@
+# Canonical shared policy. Private credentials are assembled by Sub-Store.
+schema: topo-policy/v1
+status: candidate
+date: '2026-11-16'
+sources:
+  flowercloud:
+    role: primary
+    region_eligible: true
+    low_cost_marker: 实验性
+    multiplier_authority: airport-documentation
+  bwh:
+    role: self-hosted
+    region_eligible: false
+  ora:
+    role: self-hosted
+    region_eligible: false
+  pages:
+    role: cf-backup
+    region_eligible: false
+  pages-copy8708:
+    role: residential-chain
+    region_eligible: false
+    platforms:
+    - Mihomo
+    front_group: ⚡ CF前置
+selectors:
+  main:
+    name: 🚀 主力出口
+    default: airport-failover
+    choices:
+    - airport-failover
+    - airport-low
+    - airport-all
+    - self-hosted
+    - self-failover
+    - home-chain
+    - cf-backup
+    automatic_cross_source_fallback: false
+  airport-low:
+    name: 🌸 花云低倍
+    filter:
+      source: flowercloud
+      low_cost: true
+    selection: manual-with-optional-auto-child
+    initial_preference: preserve-current-else-hong-kong-low
+  airport-all:
+    name: 🌸 花云全量
+    filter:
+      source: flowercloud
+    selection: manual-with-optional-auto-child
+  self-hosted:
+    name: 🏠 自建节点
+    filter:
+      sources:
+      - bwh
+      - ora
+    initial_preference: bwh-reality-vision
+    incompatible_nodes: report-and-omit-only-in-unsupported-target
+  cf-backup:
+    name: ☁️ CF 备用
+    filter:
+      source: pages
+    selection: explicit-manual-with-optional-auto-child
+  airport-failover:
+    name: 🌸 花云容灾
+    filter:
+      source: flowercloud
+      region: HK
+    selection: ordered-fallback
+    order:
+    - low-cost
+    - ordinary
+    cross_region: false
+    cross_source: false
+  home-chain:
+    name: 🏡 家宽链式
+    filter:
+      source: pages-copy8708
+      type: openvpn
+    platforms:
+    - Mihomo
+    selection: manual
+    front_group: ⚡ CF前置
+  self-failover:
+    name: 🏠 自建容灾
+    filter:
+      sources:
+      - bwh
+      - ora
+    selection: ordered-fallback
+    cross_region: true
+    explicit_selection_only: true
+regions:
+  sole_source: flowercloud
+  required:
+  - US
+  - HK
+  - JP
+  - SG
+  - TR
+  optional:
+  - TW
+  - KR
+  default_selection: same-region-fallback-with-manual-node-options
+  optional_auto_child:
+    interval_seconds: 600
+    tolerance_ms: 80
+    test_while_idle: false
+  missing_region: report-no-cross-source-or-country-substitution
+  classify_from: source-metadata-and-explicit-airport-name-mapping
+  classify_from_emoji_alone: false
+  fallback_interval_seconds: 300
+business_groups:
+  ai:
+    name: 🤖 AI 服务
+    default: region-US
+    choices:
+    - region-US
+    - region-JP
+    - region-SG
+    - region-HK
+    - region-TR
+    - main
+    - self-hosted
+    - home-chain
+    - cf-backup
+    - DIRECT
+  google:
+    name: 🌐 谷歌服务
+    default: main
+    choices:
+    - main
+    - airport-low
+    - airport-all
+    - self-hosted
+    - home-chain
+    - cf-backup
+    - region-HK
+    - region-JP
+    - region-SG
+    - region-US
+    - region-TR
+    - DIRECT
+  telegram:
+    name: 📨 电报
+    default: main
+    choices:
+    - main
+    - airport-low
+    - airport-all
+    - self-hosted
+    - home-chain
+    - cf-backup
+    - region-HK
+    - region-JP
+    - region-SG
+    - region-US
+    - region-TR
+    - DIRECT
+  crypto:
+    name: ₿ 加密货币
+    default: main
+    choices:
+    - main
+    - airport-low
+    - airport-all
+    - self-hosted
+    - home-chain
+    - cf-backup
+    - region-HK
+    - region-JP
+    - region-SG
+    - region-US
+    - region-TR
+    - DIRECT
+  microsoft:
+    name: Ⓜ️ 微软服务
+    default: DIRECT
+    choices:
+    - DIRECT
+    - main
+    - self-hosted
+    - home-chain
+    - region-HK
+    - region-JP
+    - region-SG
+    - region-US
+    - region-TR
+  onedrive:
+    name: ☁️ 微软云盘
+    default: DIRECT
+    choices:
+    - DIRECT
+    - main
+    - self-hosted
+    - home-chain
+    - region-HK
+    - region-JP
+    - region-SG
+    - region-US
+    - region-TR
+  apple:
+    name: 🍎 苹果服务
+    default: DIRECT
+    choices:
+    - DIRECT
+    - main
+    - self-hosted
+    - home-chain
+    - region-HK
+    - region-JP
+    - region-SG
+    - region-US
+    - region-TR
+routing:
+  order:
+  - local-network-and-bootstrap
+  - explicit-user-exceptions-and-domestic-ai
+  - ads-if-enabled
+  - ai
+  - telegram
+  - crypto
+  - onedrive
+  - microsoft
+  - apple
+  - google
+  - cn-domains
+  - cn-ip
+  - final
+  domestic: DIRECT
+  final: main
+  gemini: ai
+  copilot: ai
+  shared_google_login_and_generic_api: google
+  shared_layer_process_rules: false
+  shared_layer_whole_cloud_asn_rules: false
+rule_inputs:
+  base: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/
+  ai: geo/geosite/category-ai-!cn.list
+  domestic_ai: geo/geosite/category-ai-cn.list
+  google: geo/geosite/google.list
+  telegram_domains: geo/geosite/telegram.list
+  telegram_ip: geo/geoip/telegram.list
+  crypto: geo/geosite/category-cryptocurrency.list
+  onedrive: geo/geosite/onedrive.list
+  microsoft: geo/geosite/microsoft.list
+  apple: geo/geosite/apple.list
+  cn_domains: geo/geosite/cn.list
+  cn_ip: geo/geoip/cn.list
+  snapshot_consistency: same-input-revisions-for-all-targets
+  unknown_syntax: fail-candidate-build-and-retain-last-good
+ads:
+  default_mode: enabled
+  default_sources:
+  - anti-AD
+  - AWAvenue
+  optional_enhanced_sources:
+  - AdRules
+  - AWAvenue
+  merge: semantic-deduplication-with-allowlist-processing
+  external_adblocking_dns: false
+  pause_preserves_normal_business_routing: true
+  mihomo_pause: planned-REJECT-to-PASS-selector-requires-kernel-verification
+  qx_pause:
+    mechanism: full-remote-resource-bundle-through-official-update-configuration-url-scheme
+    entries:
+    - pause-ads-shortcut
+    - restore-ads-shortcut
+    remove_domain_ad_resource: true
+    disable_pure_ad_rewrites: true
+    preserve_functional_rewrites: true
+    disable_global_mitm: false
+    require_complete_resource_inventory: true
+    confirmation_behavior: device-test-required-not-guaranteed-silent
+    automatic_background_restore: not-promised
+  external_browser_extensions_in_pause_scope: false
+qx:
+  server_remote_count: 1
+  server_remote_authority: Sub-Store-collection-all
+  remove_disabled_legacy_node_subscriptions: true
+  mitm_certificate_storage: private-device-or-private-handoff-only
+  rewrite_modules:
+    travel-replay:
+      preserve_verbatim: true
+      enabled: false
+      category: owner-functional
+    travel-record:
+      preserve_verbatim: true
+      enabled: false
+      category: owner-functional
+    travel-modify:
+      preserve_verbatim: true
+      enabled: true
+      category: owner-functional
+    travel-check:
+      preserve_verbatim: true
+      enabled: false
+      category: owner-functional
+    flightradar24:
+      keep: true
+      category: functional
+    umetrip:
+      keep: true
+      category: ads
+      membership_effect: not-verified
+    bilibili-lite:
+      keep: true
+      category: ads
+    amap:
+      keep: true
+      category: ads
+    baidu-map:
+      keep: true
+      category: ads
+    weibo-light:
+      keep: true
+      category: ads
+      app_variant: user-confirmed-light
+    startup-ads:
+      keep: true
+      category: ads
+      dedicated-module-overlap: exclude-reviewed-overlaps
+    wechat-miniapp:
+      keep: true
+      category: ads
+    wechat-unblock-links:
+      keep: true
+      category: functional
+    youtube-ads:
+      keep: true
+      category: ads
+    youtube-subtitle-translation:
+      keep_optional: true
+      enabled: false
+      category: functional
+  other_legacy_modules: archive-not-enabled-in-new-profile
+  boxjs: include-only-if-selected-modules-require-it
+publishing:
+  auto_check_interval_hours: 24
+  reject_empty_or_invalid_updates: true
+  retain_last_good: true
+  preserve_existing_share_urls_where_possible: true
+  deploy_after: staged-config-and-device-verification
+known_acceptance_boundaries:
+- QX-url-scheme-confirmation-needs-device-verification
+- Node-quality-and-app-script-effect-cannot-be-inferred-from-download-or-latency
+- Selected-proxy-runtime-state-is-not-synchronized-between-devices
+- Shared-HTTPS-hosts-cannot-be-routed-by-request-path-in-Mihomo
+bootstrap_rules:
+- - DOMAIN-KEYWORD
+  - oraclecloud
+- - DOMAIN-SUFFIX
+  - oracledocs.com
+- - DOMAIN-SUFFIX
+  - oracle.com
+- - DOMAIN-SUFFIX
+  - oraclecloud.com
+- - DOMAIN-SUFFIX
+  - api-flowercloud.com
+- - DOMAIN-SUFFIX
+  - xmancdn.com
+- - DOMAIN-SUFFIX
+  - sub.stlyx.com
+- - DOMAIN-SUFFIX
+  - local
+- - DOMAIN-SUFFIX
+  - lan
+- - IP-CIDR
+  - 0.0.0.0/8
+- - IP-CIDR
+  - 10.0.0.0/8
+- - IP-CIDR
+  - 100.64.0.0/10
+- - IP-CIDR
+  - 127.0.0.0/8
+- - IP-CIDR
+  - 169.254.0.0/16
+- - IP-CIDR
+  - 172.16.0.0/12
+- - IP-CIDR
+  - 192.168.0.0/16
+- - IP-CIDR
+  - 224.0.0.0/4
+- - IP-CIDR6
+  - ::1/128
+- - IP-CIDR6
+  - fc00::/7
+- - IP-CIDR6
+  - fe80::/10

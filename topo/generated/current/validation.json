@@ -1,0 +1,43 @@
+{
+  "version": "v1-4b3b6d836ad79d98",
+  "domain_cases": {
+    "gemini.google.com": "🤖 AI 服务",
+    "generativelanguage.googleapis.com": "🤖 AI 服务",
+    "copilot.microsoft.com": "🤖 AI 服务",
+    "chatgpt.com": "🤖 AI 服务",
+    "claude.ai": "🤖 AI 服务",
+    "www.googleapis.com": "🌐 谷歌服务",
+    "drive.google.com": "🌐 谷歌服务",
+    "www.youtube.com": "🌐 谷歌服务",
+    "api.telegram.org": "📨 电报",
+    "www.binance.com": "₿ 加密货币",
+    "www.okx.com": "₿ 加密货币",
+    "onedrive.live.com": "☁️ 微软云盘",
+    "api.onedrive.com": "☁️ 微软云盘",
+    "outlook.office365.com": "Ⓜ️ 微软服务",
+    "www.apple.com": "🍎 苹果服务",
+    "www.baidu.com": "DIRECT",
+    "api.deepseek.com": "DIRECT",
+    "kimi.com": "DIRECT",
+    "oraclecloud.com": "DIRECT",
+    "sub.stlyx.com": "DIRECT",
+    "example.org": "🚀 主力出口"
+  },
+  "overlapping_ad_pause_case": true,
+  "provider_counts": {
+    "bootstrap": 8,
+    "bootstrap-ip": 12,
+    "domestic-ai": 129,
+    "ads": 102678,
+    "ai": 217,
+    "telegram": 21,
+    "telegram-ip-ip": 12,
+    "crypto": 241,
+    "onedrive": 16,
+    "microsoft": 637,
+    "apple": 1584,
+    "google": 847,
+    "cn-domains": 110177,
+    "cn-ip-ip": 9640
+  }
+}
