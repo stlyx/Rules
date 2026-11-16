@@ -1,0 +1,73 @@
+.github/workflows/topo-rules.yml
+  s_59d444d8614ee2::t_38d4655e4a5f09 1-70
+topo/README.md
+  s_59d444d8614ee2::t_ee1e43c4bb2cce 1-24
+topo/build.py
+  s_59d444d8614ee2::t_92f21619873e33 1-294
+topo/check-runtime.js
+  s_59d444d8614ee2::t_989b7abb99c73f 1-59
+topo/check_core.py
+  s_59d444d8614ee2::t_39cc746ce9095d 1-101
+topo/generated/current/manifest.json
+  s_59d444d8614ee2::t_f4a2ae83ebdf50 1-671
+topo/generated/current/mihomo/ads.list
+  s_59d444d8614ee2::t_e634aa95088663 1-102678
+topo/generated/current/mihomo/ai.list
+  s_59d444d8614ee2::t_f95ee843203d59 1-217
+topo/generated/current/mihomo/apple.list
+  s_59d444d8614ee2::t_c4301a47ed4167 1-1584
+topo/generated/current/mihomo/bootstrap-ip.list
+  s_59d444d8614ee2::t_0c341181782400 1-12
+topo/generated/current/mihomo/bootstrap.list
+  s_59d444d8614ee2::t_86cae5c617263e 1-8
+topo/generated/current/mihomo/cn-domains.list
+  s_59d444d8614ee2::t_b6f126c9240a60 1-110177
+topo/generated/current/mihomo/cn-ip-ip.list
+  s_59d444d8614ee2::t_449f9b4d20fd28 1-9640
+topo/generated/current/mihomo/crypto.list
+  s_59d444d8614ee2::t_7845c92409d2b0 1-241
+topo/generated/current/mihomo/domestic-ai.list
+  s_59d444d8614ee2::t_f05654a78e502c 1-129
+topo/generated/current/mihomo/google.list
+  s_59d444d8614ee2::t_85263f177b08a8 1-847
+topo/generated/current/mihomo/microsoft.list
+  s_59d444d8614ee2::t_5e9e8b8a33388d 1-637
+topo/generated/current/mihomo/onedrive.list
+  s_59d444d8614ee2::t_a4f33a8a628fd7 1-16
+topo/generated/current/mihomo/telegram-ip-ip.list
+  s_59d444d8614ee2::t_4a3fcd80873285 1-12
+topo/generated/current/mihomo/telegram.list
+  s_59d444d8614ee2::t_2848ef0d400794 1-21
+topo/generated/current/qx-off.list
+  s_59d444d8614ee2::t_bd4b30059df44d 1-123386
+topo/generated/current/qx-on.list
+  s_59d444d8614ee2::t_6c8fcea26cea87 1-225944
+topo/generated/current/rewrites/startup.conf
+  s_59d444d8614ee2::t_6fd8c4cfe199ad 1-1052
+topo/generated/current/validation.json
+  s_59d444d8614ee2::t_0f221a2fe2ce94 1-43
+topo/policy.yaml
+  s_59d444d8614ee2::t_bcc9cbba851314 1-389
+topo/refresh_airport.py
+  s_59d444d8614ee2::t_ef291b50ccdf3e 1-71
+topo/runtime.js
+  s_59d444d8614ee2::t_d03a9b7b41ea4e 1-186
+topo/source-operator.js
+  s_59d444d8614ee2::t_049b349e5df063 1-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "185bf0853605e96f3798aa6cb5f8369f36f5826f",
+  "prompts": {},
+  "sessions": {
+    "s_59d444d8614ee2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1c487-7d03-76d1-98a4-85c438b4abab",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "stlyx <3462584+stlyx@users.noreply.github.com>"
+    }
+  }
+}
