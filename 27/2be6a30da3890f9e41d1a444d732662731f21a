@@ -1,0 +1,21 @@
+topo/README.md
+  s_94337e0256873f::t_cd7f638a3c3051 54-59
+topo/flag-operator.js
+  s_94337e0256873f::t_e6f7cdcbe32960 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "272be6a30da3890f9e41d1a444d732662731f21a",
+  "prompts": {},
+  "sessions": {
+    "s_94337e0256873f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1e41d-414d-71f1-a27e-0bf0c46644e5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "stlyx <3462584+stlyx@users.noreply.github.com>"
+    }
+  }
+}
