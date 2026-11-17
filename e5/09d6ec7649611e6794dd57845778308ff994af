@@ -1,0 +1,39 @@
+.github/workflows/topo-rules.yml
+  s_94337e0256873f::t_59be78c9e66f03 26,29-31,34-35
+topo/README.md
+  s_94337e0256873f::t_6be86bba63d2c6 1-50
+topo/assemble.py
+  s_94337e0256873f::t_1d6660e52f4fa8 131,137,165,169
+topo/build.py
+  s_94337e0256873f::t_c91973a75dadc2 2,8,11-12,15,17-40,42-44,47,55
+topo/check-direct-qx.js
+  s_94337e0256873f::t_4b8eed8d4e472a 1-55
+topo/check-runtime.js
+  s_94337e0256873f::t_e77af8db9767c3 53,64-67,84
+topo/check_core.py
+  s_94337e0256873f::t_5d39a38738837c 56
+topo/policy.yaml
+  s_94337e0256873f::t_a48aecccabfff8 1,5-6,225-226,235,243-245,455-457,461,463-464,466,471,501-506,509-536,539-651
+topo/runtime.js
+  s_94337e0256873f::t_b5cfc0b626cd24 14-15,132-133,220-223,226-227
+topo/validate_upstreams.py
+  s_94337e0256873f::t_f9520b4de772fc 2,4-5,8,13-14,16-44,48
+topo/workflow.yml
+  s_94337e0256873f::t_d1d148cb872b48 26,29-31,34-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e509d6ec7649611e6794dd57845778308ff994af",
+  "prompts": {},
+  "sessions": {
+    "s_94337e0256873f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1e41d-414d-71f1-a27e-0bf0c46644e5",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "stlyx <3462584+stlyx@users.noreply.github.com>"
+    }
+  }
+}
