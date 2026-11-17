@@ -1,9 +1,9 @@
-# Canonical shared policy. Mapping order defines selector and service display order.
+# Canonical groups and upstream URL mappings. Rule contents are maintained upstream.
 # Private credentials are assembled by Sub-Store.
 schema: topo-policy/v1
 status: active
-layout: manual-qx-resources-v4
-date: '2026-11-16'
+layout: native-upstream-v5
+date: '2026-11-17'
 sources:
   flowercloud:
     role: primary
@@ -207,10 +207,8 @@ routing:
   - flowercloud-direct
   - ads
   - oracle
-  - domestic-ai
   - ai
   - telegram
-  - telegram-ip
   - crypto
   - onedrive
   - microsoft
@@ -224,23 +222,8 @@ routing:
   gemini: ai
   copilot: ai
   shared_google_login_and_generic_api: google
-  shared_layer_process_rules: false
-  shared_layer_whole_cloud_asn_rules: false
-rule_inputs:
-  base: https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/
-  ai: geo/geosite/category-ai-!cn.list
-  domestic_ai: geo/geosite/category-ai-cn.list
-  google: geo/geosite/google.list
-  telegram_domains: geo/geosite/telegram.list
-  telegram_ip: geo/geoip/telegram.list
-  crypto: geo/geosite/category-cryptocurrency.list
-  onedrive: geo/geosite/onedrive.list
-  microsoft: geo/geosite/microsoft.list
-  apple: geo/geosite/apple.list
-  cn_domains: geo/geosite/cn.list
-  cn_ip: geo/geoip/cn.list
-  snapshot_consistency: coherent-qx-daily-build-with-independent-native-branch-refresh
-  unknown_syntax: fail-candidate-build-and-retain-last-good
+  upstream_process_matches: native-client-specific
+  source_equivalence: same-upstream-families-with-native-client-matching
 ads:
   default_mode: enabled
   default_sources:
@@ -249,17 +232,17 @@ ads:
   optional_enhanced_sources:
   - AdRules
   - AWAvenue
-  merge: semantic-deduplication-with-allowlist-processing
+  merge: upstream-lists-used-directly
   external_adblocking_dns: false
   pause_preserves_normal_business_routing: true
   mihomo_pause: REJECT-to-PASS-verified
   qx_pause:
     mechanism: manual-filter-and-rewrite-resource-toggles
-    ad_filter_tag: 广告拦截
-    business_filter_tag: 业务分流
-    separate_ad_filter_resource: true
     rewrite_control: native-qx-resource-switches
     disable_global_mitm: false
+    ad_filter_tags:
+    - 广告 · anti-AD
+    - 广告 · 秋风
   external_browser_extensions_in_pause_scope: false
 qx:
   server_remote_count: 1
@@ -469,22 +452,23 @@ qx:
     - 443
     direct_hosts:
     - ad.12306.cn
-  filter_remote_count: 2
-  filter_remote_authority: shared-business-feed-and-separate-ad-feed
+  filter_remote_count: 14
+  filter_remote_authority: direct-upstream-native-formats
+  resource_parser_url: https://raw.githubusercontent.com/KOP-XIAO/QuantumultX/master/Scripts/resource-parser.js
 publishing:
   auto_check_interval_hours: 24
   reject_empty_or_invalid_updates: true
-  retain_last_good: true
+  retain_last_good: client-managed
   preserve_existing_share_urls_where_possible: true
-  deploy_after: staged-config-and-device-verification
-  rule_transport: upstream-github-with-private-qx-normalization
-  refresh_location: substore-server-systemd
+  deploy_after: source-url-format-and-native-core-verification
+  rule_transport: direct-upstream-client-download
   client_rule_refs: upstream-branches
+  refresh_location: clients
 known_acceptance_boundaries:
-- QX-url-scheme-confirmation-needs-device-verification
 - Node-quality-and-app-script-effect-cannot-be-inferred-from-download-or-latency
 - Selected-proxy-runtime-state-is-not-synchronized-between-devices
 - Shared-HTTPS-hosts-cannot-be-routed-by-request-path-in-Mihomo
+- Upstream-client-format-and-matching-differences-are-not-normalized
 bootstrap_rules:
 - - DOMAIN-SUFFIX
   - sub.stlyx.com
@@ -514,18 +498,154 @@ bootstrap_rules:
   - fc00::/7
 - - IP-CIDR6
   - fe80::/10
-external_rule_inputs:
-  flowercloud-direct:
-    repo: stlyx/Rules
-    branch: master
-    path: FlowerCloudDirect.list
-    policy: DIRECT
+rule_sets:
+- id: flowercloud-direct
+  category: flowercloud-direct
+  target: DIRECT
+  mihomo:
+    url: https://raw.githubusercontent.com/stlyx/Rules/master/FlowerCloudDirect.list
     behavior: classical
     format: text
-  oracle:
-    repo: blackmatrix7/ios_rule_script
-    branch: master
-    path: rule/Clash/Oracle/Oracle.list
-    policy: DIRECT
+  qx:
+    url: https://raw.githubusercontent.com/stlyx/Rules/master/FlowerCloudDirect.list
+    opt_parser: true
+- id: ads-anti-ad
+  category: ads
+  target: ads
+  mihomo:
+    url: https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-clash.yaml
+    behavior: domain
+    format: yaml
+  qx:
+    url: https://raw.githubusercontent.com/privacy-protection-tools/anti-AD/master/anti-ad-quanx.txt
+    opt_parser: false
+- id: ads-awavenue
+  category: ads
+  target: ads
+  mihomo:
+    url: https://raw.githubusercontent.com/TG-Twilight/AWAvenue-Ads-Rule/main/Filters/AWAvenue-Ads-Rule-Clash.yaml
+    behavior: domain
+    format: yaml
+  qx:
+    url: https://raw.githubusercontent.com/TG-Twilight/AWAvenue-Ads-Rule/main/Filters/AWAvenue-Ads-Rule-QuantumultX.list
+    opt_parser: true
+- id: oracle
+  category: oracle
+  target: DIRECT
+  mihomo:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Oracle/Oracle.list
     behavior: classical
     format: text
+    no_resolve: false
+  qx:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/Oracle/Oracle.list
+    opt_parser: false
+- id: ai
+  category: ai
+  target: ai
+  mihomo:
+    url: https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/AI.list
+    behavior: classical
+    format: text
+  qx:
+    url: https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Ruleset/AI.list
+    opt_parser: true
+- id: telegram
+  category: telegram
+  target: telegram
+  mihomo:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Telegram/Telegram.list
+    behavior: classical
+    format: text
+    no_resolve: true
+  qx:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/Telegram/Telegram.list
+    opt_parser: false
+- id: crypto
+  category: crypto
+  target: crypto
+  mihomo:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Crypto/Crypto.list
+    behavior: classical
+    format: text
+    no_resolve: false
+  qx:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/Crypto/Crypto.list
+    opt_parser: false
+- id: onedrive
+  category: onedrive
+  target: onedrive
+  mihomo:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/OneDrive/OneDrive.list
+    behavior: classical
+    format: text
+    no_resolve: false
+  qx:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/OneDrive/OneDrive.list
+    opt_parser: false
+- id: microsoft
+  category: microsoft
+  target: microsoft
+  mihomo:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Microsoft/Microsoft.list
+    behavior: classical
+    format: text
+    no_resolve: false
+  qx:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/Microsoft/Microsoft.list
+    opt_parser: false
+- id: apple
+  category: apple
+  target: apple
+  mihomo:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Apple/Apple.list
+    behavior: classical
+    format: text
+    no_resolve: true
+  qx:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/Apple/Apple.list
+    opt_parser: false
+- id: youtube
+  category: google
+  target: google
+  mihomo:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/YouTube/YouTube.list
+    behavior: classical
+    format: text
+    no_resolve: true
+  qx:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/YouTube/YouTube.list
+    opt_parser: false
+- id: google
+  category: google
+  target: google
+  mihomo:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Google/Google.list
+    behavior: classical
+    format: text
+    no_resolve: true
+  qx:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/Google/Google.list
+    opt_parser: false
+- id: cn-domains
+  category: cn-domains
+  target: DIRECT
+  mihomo:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaMaxNoIP/ChinaMaxNoIP.list
+    behavior: classical
+    format: text
+    no_resolve: false
+  qx:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/ChinaMaxNoIP/ChinaMaxNoIP.list
+    opt_parser: false
+- id: cn-ip
+  category: cn-ip
+  target: DIRECT
+  mihomo:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/ChinaIPs/ChinaIPs.list
+    behavior: classical
+    format: text
+    no_resolve: false
+  qx:
+    url: https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/QuantumultX/ChinaIPs/ChinaIPs.list
+    opt_parser: false

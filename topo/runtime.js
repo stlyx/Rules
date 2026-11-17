@@ -1,6 +1,5 @@
 // Shared Sub-Store runtime. The same policy IDs drive Mihomo and QX groups.
 // The installer appends either a main(config) wrapper or a QX file wrapper.
-const TOPO_RULES_ROOT = '/opt/app/data/topo-rules/current';
 const TOPO_COUNTRIES = {
   US: { name: '🇺🇸 美国', pattern: '(?:美国|美國|United States|\\bUS\\b)' },
   HK: { name: '🇭🇰 香港', pattern: '(?:香港|Hong Kong|\\bHK\\b)' },
@@ -12,17 +11,8 @@ const TOPO_COUNTRIES = {
 };
 
 async function topoManifest(seed) {
-  try {
-    const manifest = JSON.parse(require('fs').readFileSync(TOPO_RULES_ROOT + '/manifest.json', 'utf8'));
-    if (manifest.schema !== 2 || !manifest.upstream_providers?.length || !manifest.policy?.business_groups || manifest.policy.layout !== seed.policy.layout) {
-      throw new Error('Incomplete unified policy');
-    }
-    return manifest;
-  } catch (error) {
-    if (seed?.schema !== 2 || !seed.upstream_providers?.length) throw error;
-    $substore.error('Using the last valid unified policy snapshot');
-    return seed;
-  }
+  if (seed?.schema !== 3 || !seed.upstream_providers?.length || !seed.policy?.business_groups) throw new Error('Incomplete upstream configuration');
+  return seed;
 }
 
 function topoNames(policy) {
@@ -139,8 +129,8 @@ function topoMihomo(config, manifest) {
     const id = 'topo-' + provider.id;
     const revision = provider.url.split('/')[5];
     if (!/^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[a-zA-Z0-9._-]+\/.+/.test(provider.url) || !/^[a-zA-Z0-9._-]+$/.test(revision)) throw new Error('Invalid upstream provider URL');
-    config['rule-providers'][id] = { type: 'http', behavior: provider.behavior, format: provider.format, url: provider.url, path: './rule-providers/' + id + '-' + (revision.length === 40 ? revision.slice(0, 12) : revision) + (provider.format === 'yaml' ? '.yaml' : '.list'), interval: 86400, proxy: names.main };
-    config.rules.push(`RULE-SET,${id},${provider.policy}` + (provider.category === 'telegram-ip' ? ',no-resolve' : ''));
+    config['rule-providers'][id] = { type: 'http', behavior: provider.behavior, format: provider.format, url: provider.url, path: './rule-providers/upstream-' + id + '-' + (revision.length === 40 ? revision.slice(0, 12) : revision) + (provider.format === 'yaml' ? '.yaml' : '.list'), interval: 86400, proxy: names.main };
+    config.rules.push(`RULE-SET,${id},${provider.policy}` + (provider.no_resolve ? ',no-resolve' : ''));
   }
   config.rules.push('MATCH,' + names.main);
   const known = new Set([...nodes.map(p => p.name), ...config['proxy-groups'].map(g => g.name), 'DIRECT', 'REJECT', 'PASS']);
@@ -227,14 +217,14 @@ function topoQxConfig(text, manifest, bindings) {
   text = topoReplaceSection(text, 'policy', topoQxPolicies(manifest.policy));
   text = topoReplaceSection(text, 'server_remote', bindings.nodes + ', tag=pnodes, update-interval=21600, opt-parser=false, enabled=true');
   text = topoReplaceSection(text, 'server_local', '');
-  if (!bindings.rules || !bindings.ads) throw new Error('Missing QX business or ad feed');
-  text = topoReplaceSection(text, 'filter_remote', [
-    bindings.ads + ', tag=广告拦截, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true',
-    bindings.rules + ', tag=业务分流, update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true',
-  ].join('\n'));
+  text = topoReplaceSection(text, 'filter_remote', manifest.upstream_providers.map(provider => {
+    const resource = provider.qx;
+    return resource.url + ', tag=' + resource.tag + ', force-policy=' + resource.policy + ', update-interval=86400, opt-parser=' + Boolean(resource.opt_parser) + ', inserted-resource=true, enabled=true';
+  }).join('\n'));
   text = text.replace(/^event-interaction[^\n]*,\s*tag=(?:🛡️\s*)?广告开关(?:,|$)[^\n]*\n?/gm, '');
   const requirements = manifest.policy.qx.rewrite_requirements || {};
-  text = topoReplaceSection(text, 'filter_local', [...(requirements.direct_hosts || []).map(host => 'host,' + host + ',direct'), 'final,🚀 主力出口'].join('\n'));
+  const kinds = { DOMAIN: 'host', 'DOMAIN-SUFFIX': 'host-suffix', 'DOMAIN-KEYWORD': 'host-keyword', 'IP-CIDR': 'ip-cidr', 'IP-CIDR6': 'ip6-cidr' };
+  text = topoReplaceSection(text, 'filter_local', [...(requirements.direct_hosts || []).map(host => 'host,' + host + ',direct'), ...manifest.policy.bootstrap_rules.map(([kind, value]) => kinds[kind] + ',' + value + ',direct'), 'final,🚀 主力出口'].join('\n'));
   if (requirements.udp_drop_ports?.length) {
     const match = text.match(/^\s*udp_drop_list\s*=([^\n]*)$/m);
     const ports = [...new Set([...(match ? match[1].split(',').map(value => value.trim()).filter(Boolean) : []), ...requirements.udp_drop_ports.map(String)])];

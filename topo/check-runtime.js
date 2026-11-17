@@ -50,7 +50,7 @@ assert.throws(() => topoMihomo({ proxies: recursiveNodes }, manifest), /Proxy de
 assert.throws(() => topoMihomo({ proxies: nodes.filter(n => !n.name.includes('[花云] 美国')) }, manifest), /Missing airport region/);
 
 const text = '[general]\nserver_check_url=https://example.org\n[policy]\nstatic=legacy,direct\n[server_remote]\nhttps://example.org/old\n[server_local]\nlegacy-node\n[filter_remote]\nhttps://example.org/old-rules\n[filter_local]\nfinal,direct\n[task_local]\nevent-interaction https://example.org/share/file/qx-ad-control-task?token=placeholder, tag=广告开关\n[mitm]\npassphrase=PRIVATE-PLACEHOLDER\n';
-const qx = topoQxConfig(text, manifest, { nodes: 'https://example.org/new-nodes', rules: 'https://example.org/upstream-routing', ads: 'https://example.org/ad-rules' });
+const qx = topoQxConfig(text, manifest, { nodes: 'https://example.org/new-nodes',  });
 assert(!qx.includes('legacy-node'));
 assert(!qx.includes('🏡 家宽链式'));
 assert(qx.includes('static=🤖 AI 服务, 🇺🇸 美国'));
@@ -61,8 +61,10 @@ const mihomoOnly = new Set(['🏡 家宽链式', '⚡ CF 前置', '🛡️ 广�
 assert.deepEqual(qxGroups, config['proxy-groups'].map(group => group.name).filter(name => !mihomoOnly.has(name)));
 assert(qx.includes('passphrase=PRIVATE-PLACEHOLDER'));
 assert(Object.values(config['rule-providers']).every(provider => provider.url.startsWith('https://raw.githubusercontent.com/')));
-assert(qx.includes('https://example.org/upstream-routing, tag=业务分流'));
-assert(qx.indexOf('https://example.org/ad-rules, tag=广告拦截') < qx.indexOf('https://example.org/upstream-routing, tag=业务分流'));
+assert.equal(qx.split('[filter_remote]\n')[1].split('\n[')[0].trim().split('\n').length, manifest.upstream_providers.length);
+assert(qx.includes('force-policy=🤖 AI 服务'));
+assert(!qx.includes('/share/file/qx-routing'));
+assert(!qx.includes('/share/file/qx-ads'));
 assert(!qx.includes('qx-ad-control-task'));
 
 const baidu = 'https://example.org/baidu, tag=百度地图, enabled=false, opt-parser=false, update-interval=123';
@@ -79,7 +81,7 @@ assert(oracleRule > 0 && config.rules.every((rule, index) => !rule.startsWith('R
 
 assert(qx.includes('udp_drop_list=443'));
 assert(qx.includes('host,ad.12306.cn,direct'));
-assert.equal(topoQxConfig(qx, manifest, { nodes: 'https://example.org/new-nodes', rules: 'https://example.org/upstream-routing', ads: 'https://example.org/ad-rules' }).match(/^udp_drop_list=.*$/gm).length, 1);
+assert.equal(topoQxConfig(qx, manifest, { nodes: 'https://example.org/new-nodes',  }).match(/^udp_drop_list=.*$/gm).length, 1);
 
 const operatorCode = fs.readFileSync(require.resolve('./source-operator.js'), 'utf8');
 function project(source, target, values) {

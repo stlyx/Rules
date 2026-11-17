@@ -1,97 +1,50 @@
-# Unified routing resources
+# Shared groups and direct upstream rule URLs
 
-`policy.yaml` is the shared policy for Mihomo and Quantumult X. `build.py`
-downloads one immutable revision of each public upstream and emits the routing
-resources. `runtime.js` assembles platform-specific groups in private Sub-Store
-profiles. This directory must never contain subscriptions, proxy credentials,
-personal rewrite URLs or MITM private keys.
+`policy.yaml` owns the group layout, business defaults, public upstream URLs and
+QX rewrite inventory. `build.py` emits URL metadata only: it never downloads,
+converts, merges or publishes rule contents. `runtime.js` builds the two private
+Sub-Store profiles from that embedded metadata; it does not read a disk manifest.
 
-Mihomo tracks the upstream branches of MetaCubeX, anti-AD, AWAvenue and
-blackmatrix7 Oracle. Only the small FlowerCloud direct-domain list is hosted
-in this repository (`FlowerCloudDirect.list`); profiles do not fetch generated
-catalogs or manifests from it. QX uses two scoped Sub-Store
-resources backed by the same source snapshot: one business feed and one
-independently enabled ad feed; conversion preserves the shared priority rules. The generated lists live on the server's persisted filesystem,
-outside Sub-Store's configuration database.
+Mihomo and QX download their rule resources directly from the same upstream
+families. Business categories use blackmatrix7's respective Clash/QX formats;
+AI uses ACL4SSR's aggregate list; ads use anti-AD and AWAvenue. The two small
+FlowerCloud bootstrap exceptions remain in `FlowerCloudDirect.list`, as agreed.
+Oracle stays below ads. Every URL follows its upstream branch.
 
-`refresh_rules.py` runs daily on the Sub-Store host. It builds a candidate,
-checks the shared runtime and native upstream formats with Mihomo, then
-atomically advances a local snapshot symlink. Failures retain the last good
-snapshot. The installed JSON policy and strict upstream domain-payload reader
-allow the host job to use Python's standard library. No management keys or
-subscriptions are needed by the refresh job. GitHub Actions validates source
-changes and no longer publishes routing artifacts.
+QX uses native QX lists where available. ACL4SSR AI, FlowerCloud's classical list
+and AWAvenue's list use the already configured KOP-XIAO resource parser on the
+client. No Sub-Store conversion or rule-file shares are involved. Each resource
+sets `force-policy` to the existing business group, DIRECT or REJECT. Users toggle
+ad resources and rewrites in QX; there are no ad-control pages or tasks.
 
-QX shadowed exact/suffix rules are removed to preserve the ordered policy;
-paused resources are compiled separately to restore the normal business route.
-Oracle uses the public blackmatrix7 list, below both ad providers. This includes
-Oracle corporate domains as maintained upstream; overlapping ad/tracker domains
-remain blocked while ads are enabled. FlowerCloud bootstrap domains precede ads.
-Mihomo keeps the ordinary business providers after the ad provider so `PASS`
-continues routing when ad interception is paused.
+Upstream lists and native client matchers differ: some native formats include
+process, user-agent, ASN or wildcard entries. Those contents are used as published;
+this project no longer normalizes every overlap between clients. Group names,
+defaults and category order remain shared. Representative route and ad priority
+checks validate both clients' intended groups; they do not assert identical
+classification for every possible hostname or replace QX device testing.
 
-Regions contain only FlowerCloud nodes and use manual selection, with
-experimental nodes listed first. Failover groups are omitted. The main group
-defaults to the low-cost airport selector. Mapping order in `policy.yaml`
-places the main, low-cost, self-hosted and other node selectors before the
-service selectors; Telegram and cryptocurrency are last in both clients.
-CF and residential OpenVPN chains are explicit choices; the latter are
-Mihomo-only. Their dialer selector offers the low-cost airport, self-hosted,
-all-airport and CF selectors, with CF selected by default. The main and
-residential selectors are excluded to prevent recursive chains. All group and
-dialer dependencies are checked for cycles before returning a profile.
-The residential dialer is named `⚡ CF 前置`. QX policy icons use the upstream
-Qure icon set through each policy's native `img-url` option.
+Sub-Store retains only `withlow-mihomo` and `qx-diy`. Nodes still come from the
+owner's `all` collection. There is no daily server rule downloader, normalization
+job, rule directory or hosted QX routing/ads file. Clients handle their own updates.
 
-CMFA 2.11.28.Meta receives a legacy-compatible subset from the same full share:
-OpenVPN ciphers unsupported by Mihomo 1.19.25 are omitted, and unused residential
-fronts/groups are removed. Desktop clients keep the full residential output.
-Responses vary by User-Agent and are not cached. Missing `tls-crypt` fields are
-emitted as empty strings for old decoders; supplied keys and ciphers are kept.
+QX has 22 upstream rewrite resources, preserving the four private owner travel
+entries. Startup ads use the complete upstream without overlap filtering or
+custom-host protection. Baidu Maps, Baidu Pan scripts and 12306 use the resource
+parser as required. QX keeps UDP 443 disabled for XiaoHongShu's rewrite and one
+exact 12306 direct exception for its response replacement. Location and YouTube
+subtitle translation are omitted.
 
-QX rewrite resource labels use `Application · Function`, with aliases recorded
-in the shared policy. URLs, order, enable flags and other options are retained;
-Baidu Maps explicitly enables the configured resource parser to extract its
-comment-wrapped rewrite and MITM sections. QX keeps one complete profile;
-there are no ad-control pages, interaction tasks or separate paused profiles.
-YouTube subtitle translation has been removed from the maintained inventory.
+Source changes run read-only checks: `validate_upstreams.py` downloads sources to
+a temporary CI/local cache, `check-direct-qx.js` checks native QX and client parser
+output, and `check_core.py` loads the upstream formats in a real Mihomo core.
+No rules are uploaded or served by these checks.
 
-Rewrite resources reference their original upstreams directly, including the full
-startup-ad list. The routing builder no longer downloads, filters or publishes
-startup rewrites, and no custom-host guard is applied. Upstream overlaps are
-accepted. URLs, parser flags and refresh intervals for public modules live in
-`policy.yaml`; private owner resources stay only in Sub-Store.
+Selectors remain manual, with source selectors before services and Telegram/
+cryptocurrency last. Regions contain only FlowerCloud nodes. CF residential fronts
+remain explicit and cycle checked. CMFA 2.11.28.Meta receives the legacy-compatible
+subset from the same original share; desktop retains residential OpenVPN support.
+Missing `tls-crypt` fields are emitted as empty strings; supplied keys are kept.
 
-The 12306 rewrite requires `ad.12306.cn` to bypass DNS ad rejection, so QX has
-one exact-host direct exception before its fallback. This is a QX rewrite
-requirement; Mihomo keeps its domain ad blocking. XiaoHongShu's upstream setup
-requires UDP port 443 in QX's `udp_drop_list`. Rewrite resources, including mixed cleanup modules such as XiaoHongShu and
-Spotify, are enabled or disabled manually in QX.
-
-QX syncs existing remote resources automatically (nodes every 6 hours; routing
-and default rewrite resources every 24 hours). Changes to `[policy]` or resource
-inventories require updating the complete profile. Ad blocking is controlled by
-the native switch on the `广告拦截` filter resource; individual rewrites use their
-native switches. The business feed stays complete when ads are disabled.
-
-The ad feed copies domain rules hidden by an earlier ad suffix into equal-priority
-REJECT entries. This preserves ad precedence across QX's two resources without
-removing business entries needed when the ad resource is off. The daily refresh
-and CI audit both switch states against the native rule model. Combined on/off
-artifacts are retained as validation references, not Sub-Store profile files.
-
-Private installation and verification records are maintained in `/opt/topo`
-on the owner's workstation, not in this public repository.
-
-`audit_rules.py --rules <snapshot-directory> --output <report.json>` compares
-the actual generated Mihomo providers with both QX routing files. It checks
-source domains, representative subdomains, IP prefix boundaries, ad pause and
-keyword overlaps using a static priority model. Exit status 1 means at least
-one modeled probe differs; it must not be described as QX device validation.
-
-Each QX build downloads one resolved revision per repository and records SHA
-and content hashes for auditing. Mihomo clients fetch branch URLs daily, while
-QX receives the server's daily normalized build. Their independent refresh times
-can temporarily produce different upstream versions. Device selections are
-also independent. The inherited Oracle keyword exception has been removed in
-favor of the public list; local/private-network bootstrap rules remain inline.
+Never commit subscriptions, proxy credentials, personal rewrite URLs, MITM keys or
+management URLs. Private deployment records stay in `/opt/topo` on the workstation.

@@ -53,7 +53,7 @@ def main():
             shutil.copyfile(args.source_cache / (provider["source_key"] + ".source") if args.upstream else args.rules / provider["path"], file)
             providers[name] = {"type": "file", "behavior": provider["behavior"], "format": provider["format"] if args.upstream else "text", "path": file.name}
             policy = "🧪 直连" if provider["policy"] == "DIRECT" else provider["policy"]
-            rules.append(f"RULE-SET,{name},{policy}" + (",no-resolve" if args.upstream and provider["category"] == "telegram-ip" else ""))
+            rules.append(f"RULE-SET,{name},{policy}" + (",no-resolve" if args.upstream and provider.get("no_resolve") else ""))
         rules.append("MATCH,🚀 主力出口")
         config = {"mixed-port": proxy_port, "bind-address": "127.0.0.1", "external-controller": f"127.0.0.1:{controller}", "allow-lan": False, "mode": "rule", "log-level": "info", "find-process-mode": "off", "dns": {"enable": False}, "proxies": [], "proxy-groups": groups, "rule-providers": providers, "rules": rules}
         (home / "config.yaml").write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False) if yaml else json.dumps(config, ensure_ascii=False))

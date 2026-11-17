@@ -10,7 +10,6 @@ import json
 import os
 from pathlib import Path
 import re
-import secrets
 import urllib.parse
 
 import yaml
@@ -105,16 +104,6 @@ def main():
     policy = manifest["policy"]
     tokens = {x["name"]: x["token"] for x in storage["tokens"]}
     nodes_url = "https://sub.stlyx.com/share/col/all?" + urllib.parse.urlencode({"token": tokens["all"], "target": "QX"})
-    allocations = folder / "new-tokens.private.json"
-    allocated = json.loads(allocations.read_text()) if allocations.exists() else {}
-    new_tokens = {name: tokens.get(name) or allocated.get(name) or secrets.token_urlsafe(24) for name in ["qx-routing", "qx-ads"]}
-    allocations.write_text(json.dumps(new_tokens))
-    rule_links = {"rules": share("qx-routing", new_tokens["qx-routing"]), "ads": share("qx-ads", new_tokens["qx-ads"])}
-    rule_files = []
-    for name, label, path in [("qx-routing", "业务分流", manifest["qx_business"]), ("qx-ads", "广告拦截", manifest["qx_ads"])]:
-        code = '$content = require("fs").readFileSync(' + json.dumps("/opt/app/data/topo-rules/current/" + path) + ', "utf8");\n$options ||= {}; $options._res = { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } };'
-        rule_files.append({"name": name, "displayName": "QX · " + label, "source": "local", "sourceType": "local", "content": "", "noCache": True, "process": [{"type": "Script Operator", "args": {"mode": "script", "content": code}}]})
-
     text = original_files["qx-diy"]["content"]
     original_rewrites = [line for line in section(text, "rewrite_remote") if active(line)]
     travel = [line for line in original_rewrites if "旅行串串" in tag(line)]
@@ -139,13 +128,13 @@ def main():
     if seen != set(policy["qx"]["rewrite_modules"]):
         raise ValueError("Preserved rewrite inventory mismatch")
     base = replace(text, "rewrite_remote", new_rewrites)
-    base = replace(base, "filter_remote", [rule_links[key] + ", tag=" + label + ", update-interval=86400, opt-parser=false, inserted-resource=true, enabled=true" for key, label in [("ads", "广告拦截"), ("rules", "业务分流")]])
+    base = replace(base, "filter_remote", [p["qx"]["url"] + ", tag=" + p["qx"]["tag"] + ", force-policy=" + p["qx"]["policy"] + ", update-interval=86400, opt-parser=" + str(p["qx"].get("opt_parser", False)).lower() + ", inserted-resource=true, enabled=true" for p in manifest["upstream_providers"]])
     base = replace(base, "task_local", [line for line in section(base, "task_local") if "qx-ad-control-task" not in line])
     runtime = (ROOT / "runtime.js").read_text()
     qx = copy.deepcopy(original_files["qx-diy"])
     qx["displayName"] = "Quantumult X · 统一配置"
     qx["content"] = base
-    bindings = {"nodes": nodes_url, **rule_links}
+    bindings = {"nodes": nodes_url}
     code = runtime + "\nconst TOPO_SEED = " + json.dumps(manifest, ensure_ascii=False) + ";\nconst TOPO_BINDINGS = " + json.dumps(bindings, ensure_ascii=False) + ";\n$content = topoQxConfig($content, await topoManifest(TOPO_SEED), TOPO_BINDINGS);\n"
     qx["process"] = [{"type": "Script Operator", "args": {"mode": "script", "content": code}}]
 
@@ -173,11 +162,11 @@ def main():
         raise ValueError("Missing native node collection operator")
     code = runtime + "\nasync function main(config) { return topoMihomo(config, await topoManifest(config['x-topo-policy-seed'])); }\n"
     mihomo["process"].append({"type": "Script Operator", "args": {"mode": "script", "content": code}})
-    definitions = [mihomo, qx, *rule_files]
+    definitions = [mihomo, qx]
     (folder / "files.next.private.json").write_text(json.dumps(definitions, ensure_ascii=False, indent=2))
     assert [line for line in new_rewrites if "旅行串串" in tag(line)] == [normalize_rewrite(line, policy) for line in travel]
     assert section(base, "mitm") == section(text, "mitm")
-    print(json.dumps({"files": [x["name"] for x in definitions], "travel_preserved": len(travel), "rewrite_resources": len(new_rewrites), "node_resource_count": 1, "new_scoped_tokens": len(new_tokens), "manual_ad_control": True}, ensure_ascii=False))
+    print(json.dumps({"files": [x["name"] for x in definitions], "travel_preserved": len(travel), "rewrite_resources": len(new_rewrites), "node_resource_count": 1, "new_scoped_tokens": 0, "manual_ad_control": True}, ensure_ascii=False))
 
 
 
