@@ -51,5 +51,11 @@ the legacy-compatible subset from the same original share; desktop retains
 residential OpenVPN support. Missing `tls-crypt` fields are emitted as empty
 strings; supplied keys are kept.
 
+The `all` collection runs `flag-operator.js` after the native Flag Operator. It
+uses Sub-Store's country database, adds 香江→香港 and 西美→美国 as matching aliases,
+and excludes the parenthesized 流量 usage label from country detection. Display
+labels and connection fields are preserved. This prevents traffic variants from
+being displayed with a rainbow flag.
+
 Never commit subscriptions, proxy credentials, personal rewrite URLs, MITM keys or
 management URLs. Private deployment records stay in `/opt/topo` on the workstation.
