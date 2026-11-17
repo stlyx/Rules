@@ -5,13 +5,14 @@ function operator(proxies, targetPlatform, context) {
   const platform = String(targetPlatform || '').toLowerCase();
   if (source.role === 'residential-chain' && !['json', 'mihomo', 'clashmeta', 'clash'].includes(platform)) return [];
   const flag = /^(?:(?:\p{Regional_Indicator}{2}|🏴‍☠️|🏳️‍🌈)\s*)+/u;
-  const ownPrefix = /^\[(?:花云|CF|家宽|家宽前置|自建\/bwh|自建\/ora)\]\s*/;
+  const ownPrefix = /^\[(?:花云|NanoCloud|CF|家宽|家宽前置|自建\/bwh|自建\/ora)\]\s*/;
   let result = proxies.filter(proxy => !/^(?:Traffic:|Expire:|剩余流量|套餐到期|到期时间)/i.test(proxy.name.trim())).map(proxy => {
     let name = proxy.name.replace(flag, '').replace(ownPrefix, '');
     let prefix;
     if (source.id === 'bwh') prefix = '🇺🇸 [自建/bwh] ';
     else if (source.id === 'ora') prefix = '🇸🇬 [自建/ora] ';
     else if (source.role === 'primary') prefix = '[花云] ';
+    else if (source.id === 'nanocloud') prefix = '[NanoCloud] ';
     else if (source.role === 'residential-chain') prefix = proxy.type === 'openvpn' ? '[家宽] ' : '[家宽前置] ';
     else prefix = '[CF] ';
     const result = { ...proxy, name: prefix + name };

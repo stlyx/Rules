@@ -10,6 +10,9 @@ sources:
     region_eligible: true
     low_cost_marker: 实验性
     multiplier_authority: airport-documentation
+  nanocloud:
+    role: secondary-airport
+    region_eligible: false
   bwh:
     role: self-hosted
     region_eligible: false
@@ -33,6 +36,7 @@ selectors:
     - airport-low
     - self-hosted
     - airport-all
+    - nanocloud
     - cf-backup
     - home-chain
     automatic_cross_source_fallback: false
@@ -56,6 +60,11 @@ selectors:
     filter:
       source: flowercloud
     selection: manual-with-optional-auto-child
+  nanocloud:
+    name: 💰 NanoCloud
+    filter:
+      source: nanocloud
+    selection: manual
   cf-backup:
     name: ☁️ CF 备用
     filter:
@@ -121,6 +130,7 @@ business_groups:
     - main
     - airport-low
     - airport-all
+    - nanocloud
     - self-hosted
     - home-chain
     - cf-backup
@@ -176,6 +186,7 @@ business_groups:
     - main
     - airport-low
     - airport-all
+    - nanocloud
     - self-hosted
     - home-chain
     - cf-backup
@@ -192,6 +203,7 @@ business_groups:
     - main
     - airport-low
     - airport-all
+    - nanocloud
     - self-hosted
     - home-chain
     - cf-backup
@@ -428,6 +440,7 @@ qx:
     airport-low: Airport.png
     self-hosted: Server.png
     airport-all: Global.png
+    nanocloud: Airport.png
     cf-backup: Cloudflare.png
     region-US: United_States.png
     region-HK: Hong_Kong.png

@@ -58,7 +58,7 @@ function topoMihomo(config, manifest) {
   const legacy = config['x-topo-legacy-provenance'] || {};
   const leadingFlag = /^(?:(?:\p{Regional_Indicator}{2}|🏴‍☠️|🏳️‍🌈)\s*)+/u;
   let nodes = (config.proxies || []).filter(p => !/^(?:Traffic:|Expire:|剩余流量|套餐到期)/i.test(p.name.replace(leadingFlag, ''))).map(p => {
-    if (/\[(?:花云|CF|家宽|家宽前置|自建\/bwh|自建\/ora)\]/.test(p.name)) return p;
+    if (/\[(?:花云|NanoCloud|CF|家宽|家宽前置|自建\/bwh|自建\/ora)\]/.test(p.name)) return p;
     const mapped = legacy[p.name.replace(leadingFlag, '')];
     if (!mapped) return p;
     return { ...p, name: leadingFlag.test(mapped) ? mapped : (p.name.match(leadingFlag)?.[0] || '') + mapped };
@@ -75,6 +75,7 @@ function topoMihomo(config, manifest) {
   const airport = nodes.filter(p => origin(p) === '花云');
   const self = nodes.filter(p => /^(?:自建\/bwh|自建\/ora)$/.test(origin(p) || ''));
   const cf = nodes.filter(p => origin(p) === 'CF');
+  const nano = nodes.filter(p => origin(p) === 'NanoCloud');
   const home = nodes.filter(p => origin(p) === '家宽' && p.type === 'openvpn');
   if (!airport.length || !self.length || !cf.length) throw new Error('Missing required node source');
   const names = topoNames(policy);
@@ -99,6 +100,7 @@ function topoMihomo(config, manifest) {
   group(names['airport-low'], 'select', topoRank(airport.filter(p => /实验/.test(p.name))));
   group('♻️ 花云自动', 'url-test', topoRank(airport), { interval: 600, tolerance: 80 });
   group(names['airport-all'], 'select', ['♻️ 花云自动', ...topoRank(airport)]);
+  if (nano.length) group(names.nanocloud, 'select', nano.map(p => p.name));
   const orderedSelf = [...self].sort((a, b) => Number(!/\[自建\/bwh\].*reality\+vision/.test(a.name)) - Number(!/\[自建\/bwh\].*reality\+vision/.test(b.name))).map(p => p.name);
   group(names['self-hosted'], 'select', orderedSelf);
   group('♻️ CF 自动', 'url-test', cf.map(p => p.name), { interval: 600, tolerance: 80 });
@@ -112,7 +114,7 @@ function topoMihomo(config, manifest) {
     const preferred = [...home].sort((a, b) => Number(!/HK-家宽/.test(a.name)) - Number(!/HK-家宽/.test(b.name)));
     group(names['home-chain'], 'select', preferred.map(p => p.name));
   }
-  const validIds = new Set(['DIRECT', ...Object.keys(policy.selectors).filter(id => id !== 'home-chain' || home.length), ...regionIds]);
+  const validIds = new Set(['DIRECT', ...Object.keys(policy.selectors).filter(id => (id !== 'home-chain' || home.length) && (id !== 'nanocloud' || nano.length)), ...regionIds]);
   function candidates(items) { return items.filter(id => validIds.has(id)).map(id => names[id] || id); }
   group(names.main, 'select', candidates([policy.selectors.main.default, ...policy.selectors.main.choices.filter(id => id !== policy.selectors.main.default)]));
   const business = [];
@@ -165,6 +167,7 @@ function topoQxPolicies(policy) {
   lines.push('url-latency-benchmark=♻️ 花云自动, server-tag-regex=^[^\\[]*\\[花云\\], check-interval=600, tolerance=80, alive-checking=false');
   lines.push(`static=${names['airport-all']}, ♻️ 花云自动, server-tag-regex=^[^\\[]*\\[花云\\]`);
   lines.push(`static=${names['self-hosted']}, server-tag-regex=^[^\\[]*\\[自建/(?:bwh|ora)\\]`);
+  lines.push(`static=${names.nanocloud}, server-tag-regex=^[^\\[]*\\[NanoCloud\\]`);
   lines.push('url-latency-benchmark=♻️ CF 自动, server-tag-regex=^[^\\[]*\\[CF\\], check-interval=600, tolerance=80, alive-checking=false');
   lines.push(`static=${names['cf-backup']}, ♻️ CF 自动, server-tag-regex=^[^\\[]*\\[CF\\]`);
   for (const country of regions) {

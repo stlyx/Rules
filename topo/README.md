@@ -41,10 +41,15 @@ output, and `check_core.py` loads the upstream formats in a real Mihomo core.
 No rules are uploaded or served by these checks.
 
 Selectors remain manual, with source selectors before services and Telegram/
-cryptocurrency last. Regions contain only FlowerCloud nodes. CF residential fronts
-remain explicit and cycle checked. CMFA 2.11.28.Meta receives the legacy-compatible
-subset from the same original share; desktop retains residential OpenVPN support.
-Missing `tls-crypt` fields are emitted as empty strings; supplied keys are kept.
+cryptocurrency last. Regions contain only FlowerCloud nodes. NanoCloud is a
+separate manual secondary airport selector, selectable from the main/Google/
+Telegram/crypto groups. It stays outside FlowerCloud regions and the four CF
+front choices. Upstream fetching uses a fixed Mihomo user-agent. Mihomo exports
+VLESS and TUIC; QX exports compatible VLESS nodes and omits unsupported TUIC nodes.
+CF residential fronts remain explicit and cycle checked. CMFA 2.11.28.Meta receives
+the legacy-compatible subset from the same original share; desktop retains
+residential OpenVPN support. Missing `tls-crypt` fields are emitted as empty
+strings; supplied keys are kept.
 
 Never commit subscriptions, proxy credentials, personal rewrite URLs, MITM keys or
 management URLs. Private deployment records stay in `/opt/topo` on the workstation.

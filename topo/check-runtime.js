@@ -15,6 +15,8 @@ const airport = Object.values(countries).flatMap(label => [
 const nodes = [...airport,
   { name: '🇺🇸 [自建/bwh] reality+vision 直连', type: 'vless', server: 'example.org' },
   { name: '[自建/ora] oracle', type: 'vless', server: 'example.org' },
+  { name: '[NanoCloud] 美国', type: 'vless', server: 'example.org' },
+  { name: '[NanoCloud] 香港', type: 'tuic', server: 'example.org' },
   { name: '[CF] 美国假标签', type: 'vless', server: 'example.org' },
   { name: '[CF] [花云] 美国实验性伪标签', type: 'vless', server: 'example.org' },
   { name: '[家宽前置] front', type: 'vless', server: 'example.org' },
@@ -25,13 +27,18 @@ const groups = Object.fromEntries(config['proxy-groups'].map(g => [g.name, g]));
 assert.equal(groups['🚀 主力出口'].proxies[0], '🌸 花云低倍');
 assert.deepEqual(groups['🇺🇸 美国'].proxies, ['[花云] 美国实验性 1', '[花云] 美国标准 1']);
 assert(config['proxy-groups'].every(group => group.type !== 'fallback' && !group.name.includes('容灾')));
-assert.deepEqual(config['proxy-groups'].slice(0, 6).map(group => group.name), [
-  '🚀 主力出口', '🌸 花云低倍', '🏠 自建节点', '🌸 花云全量', '☁️ CF 备用', '🏡 家宽链式',
+assert.deepEqual(config['proxy-groups'].slice(0, 7).map(group => group.name), [
+  '🚀 主力出口', '🌸 花云低倍', '🏠 自建节点', '🌸 花云全量', '💰 NanoCloud', '☁️ CF 备用', '🏡 家宽链式',
 ]);
 assert.deepEqual(config['proxy-groups'].slice(-2).map(group => group.name), ['📨 电报', '₿ 加密货币']);
 assert(config['proxy-groups'].findIndex(group => group.name === '🇰🇷 韩国') < config['proxy-groups'].findIndex(group => group.name === '🤖 AI 服务'));
 assert(new RegExp(topoRegionRegex('US')).test('🇺🇸 [花云] 美国实验性 1'));
 assert(!new RegExp(topoRegionRegex('US')).test('[CF] [花云] 美国实验性伪标签'));
+assert.deepEqual(groups['💰 NanoCloud'].proxies, ['[NanoCloud] 美国', '[NanoCloud] 香港']);
+assert(groups['🚀 主力出口'].proxies.includes('💰 NanoCloud'));
+const withoutNano = topoMihomo({ proxies: nodes.filter(n => !n.name.startsWith('[NanoCloud]')) }, manifest);
+assert(!withoutNano['proxy-groups'].some(g => g.name === '💰 NanoCloud' || g.proxies.includes('💰 NanoCloud')));
+assert(!new RegExp(topoRegionRegex('US')).test('[NanoCloud] 美国'));
 assert.equal(groups['🤖 AI 服务'].proxies[0], '🇺🇸 美国');
 assert.equal(groups['Ⓜ️ 微软服务'].proxies[0], 'DIRECT');
 assert.equal(groups['☁️ 微软云盘'].proxies[0], 'DIRECT');
@@ -55,6 +62,11 @@ assert(!qx.includes('legacy-node'));
 assert(!qx.includes('🏡 家宽链式'));
 assert(qx.includes('static=🤖 AI 服务, 🇺🇸 美国'));
 assert(!qx.includes('available='));
+const nanoPolicy = qx.split('\n').find(line => line.startsWith('static=💰 NanoCloud,'));
+const nanoPattern = nanoPolicy.match(/server-tag-regex=(.*?), img-url=/)[1];
+assert(new RegExp(nanoPattern).test('🇺🇸 [NanoCloud] 美国'));
+assert(!new RegExp(nanoPattern).test('[CF] 美国'));
+assert(nanoPolicy.endsWith('/Airport.png'));
 assert(!qx.includes('容灾'));
 const qxGroups = qx.split('[policy]\n')[1].split('\n[')[0].trim().split('\n').map(line => line.split(',')[0].split('=')[1]);
 const mihomoOnly = new Set(['🏡 家宽链式', '⚡ CF 前置', '🛡️ 广告控制']);
@@ -98,4 +110,10 @@ assert.equal(tagged[0].name, '🇺🇸 [自建/bwh] vision');
 assert.equal(tagged[0].uuid, original[0].uuid);
 assert.deepEqual(JSON.stringify(tagged[0]['reality-opts']), JSON.stringify(original[0]['reality-opts']));
 assert.equal(JSON.stringify(original), before);
+const nanoOriginal = [{ name: '🇯🇵日本-Y(通用)', type: 'vless', uuid: 'test-placeholder', tls: true }];
+const nanoTagged = project({ id: 'nanocloud', role: 'secondary-airport' }, 'QX', nanoOriginal);
+assert.equal(nanoTagged[0].name, '[NanoCloud] 日本-Y(通用)');
+assert.equal(nanoTagged[0].uuid, nanoOriginal[0].uuid);
+assert.equal(nanoTagged[0].tls, true);
+assert.equal(project({ id: 'nanocloud', role: 'secondary-airport' }, 'QX', nanoTagged)[0].name, nanoTagged[0].name);
 console.log('Runtime checks passed: manual selectors first, no failover, shared display order, source/country isolation, business defaults, QX capabilities and credential preservation.');
